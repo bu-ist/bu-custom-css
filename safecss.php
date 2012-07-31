@@ -483,9 +483,11 @@ flag.style.padding = '1px';
 document.body.style.paddingTop = '32px';
 document.body.insertBefore(flag, document.body.childNodes[0]);
 var ulink = document.getElementById('upgradelink');
-ulink.style.textDecoration = 'underline';
-ulink.style.cursor = 'pointer';
-ulink.onclick = function() {document.location.href = '$url';};
+if(ulink) {
+	ulink.style.textDecoration = 'underline';
+	ulink.style.cursor = 'pointer';
+	ulink.onclick = function() {document.location.href = '$url';};
+}
 // ]]>
 </script>
 ";
