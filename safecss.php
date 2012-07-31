@@ -435,12 +435,8 @@ function safecss_style() {
 	$href = add_query_arg( 'csblog',     $blog_id,                             $href );
 	$href = add_query_arg( 'cscache',    5,                                    $href );
 	$href = add_query_arg( 'csrev',      (int) get_option( $option . '_rev' ), $href );
-
-	if ( safecss_is_preview() )
-		$href = add_query_arg( 'csspreview', 'true', $href );
 ?>
-
-	<link rel="stylesheet" type="text/css" href="<?php echo esc_url( $href ); ?>" />
+	<link rel="stylesheet" type="text/css" href="<?php echo esc_attr( $href ); ?>" />
 <?php
 }
 
