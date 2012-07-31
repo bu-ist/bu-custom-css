@@ -181,7 +181,7 @@ function save_revision( $css, $is_preview = false ) {
 	if ( false === $is_preview )
 		wp_update_post( $safecss_post );
 
-	if ( !defined( 'DOING_MIGRATE' ) )
+	else if ( !defined( 'DOING_MIGRATE' ) )
 		_wp_put_post_revision( $safecss_post );
 }
 
