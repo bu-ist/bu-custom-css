@@ -4,7 +4,7 @@ Plugin Name: WordPress.com Custom CSS
 Plugin URI: http://automattic.com/
 Description: Allows CSS editing with strict filtering for malicious code
 Author: Automattic
-Version: 1.5
+Version: 1.5-BU1
 Author URI: http://automattic.com/
 */
 
@@ -234,15 +234,6 @@ function safecss_init() {
 		remove_filter( 'content_filtered_save_pre', 'wp_filter_post_kses' );
 		remove_all_filters( 'content_save_pre' );
 
-		safecss_class();
-		$csstidy = new csstidy();
-		$csstidy->optimise = new safecss($csstidy);
-		$csstidy->set_cfg( 'remove_bslash',              false );
-		$csstidy->set_cfg( 'compress_colors',            false );
-		$csstidy->set_cfg( 'compress_font-weight',       false );
-		$csstidy->set_cfg( 'discard_invalid_properties', true  );
-		$csstidy->set_cfg( 'merge_selectors',            false );
-
 		$css = $orig = stripslashes( $_POST['safecss'] );
 		$css = preg_replace( '/\\\\([0-9a-fA-F]{4})/', '\\\\\\\\$1', $prev = $css );
 
@@ -261,10 +252,6 @@ function safecss_init() {
 
 		if ( $css != $prev )
 			$warnings[] = 'kses found stuff';
-
-		$csstidy->parse( $css );
-
-		$css = $csstidy->print->plain();
 
 		if ( intval( $_POST['custom_content_width'] ) > 0 )
 			$custom_content_width = intval( $_POST['custom_content_width'] );
@@ -507,82 +494,6 @@ function safe_css_enqueue_scripts() {
 	wp_enqueue_script( 'postbox' );
 }
 
-function safecss_class() {
-	// Wrapped so we don't need the parent class just to load the plugin
-	if ( class_exists('safecss') )
-		return;
-
-	require_once( 'csstidy/class.csstidy.php' );
-
-	class safecss extends csstidy_optimise {
-		var $tales             = array();
-		var $props_w_urls      = array( 'background', 'background-image', 'list-style', 'list-style-image' );
-		var $allowed_protocols = array( 'http' );
-
-		function safecss( &$css ) {
-			return $this->csstidy_optimise( $css );
-		}
-
-		function postparse() {
-			if ( !empty( $this->parser->import ) ) {
-				$this->tattle( "Import attempt:\n" . print_r( $this->parser->import, 1 ) );
-				$this->parser->import = array();
-			}
-			if ( !empty( $this->parser->charset ) ) {
-				$this->tattle( "Charset attempt:\n" . print_r( $this->parser->charset, 1 ) );
-				$this->parser->charset = array();
-			}
-			return parent::postparse();
-		}
-
-		function subvalue() {
-			$this->sub_value = trim( $this->sub_value );
-
-			// Send any urls through our filter
-			if ( preg_match( '!^\\s*url\\s*(?:\\(|\\\\0028)(.*)(?:\\)|\\\\0029).*$!Dis', $this->sub_value, $matches ) )
-				$this->sub_value = $this->clean_url( $matches[1] );
-
-			// Strip any expressions
-			if ( preg_match( '!^\\s*expression!Dis', $this->sub_value ) ) {
-				$this->tattle( "Expression attempt: $this->sub_value" );
-				$this->sub_value = '';
-			}
-
-			return parent::subvalue();
-		}
-
-		function clean_url( $url ) {
-			// Clean up the string
-			$url = trim( $url, "' \" \r \n" );
-
-			// Check against whitelist for properties allowed to have URL values
-			if ( ! in_array( $this->property, $this->props_w_urls ) ) {
-				$this->tattle( 'URL in illegal property ' . $this->property . ":\n$url" );
-				return '';
-			}
-
-			$url = wp_kses_bad_protocol_once( $url, $this->allowed_protocols );
-
-			if ( empty( $url ) ) {
-				$this->tattle( 'URL empty' );
-				return '';
-			}
-
-			return "url('$url')";
-		}
-
-		function tattle( $msg, $send = false ) {
-			if ( !empty( $msg ) )
-				$this->tales [] = $msg;
-
-			if ( $send && $this->tales ) {
-				$subject = '[safecss]';
-				$message = join( "\n", $this->tales );
-			}
-		}
-	}
-}
-
 function safecss_admin_head() {
 ?>
 
@@ -692,36 +603,3 @@ if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
 </div>
 <?php
 }
-
-if ( !function_exists( 'safecss_filter_attr' ) ) :
-function safecss_filter_attr($css, $element = 'div') {
-
-	safecss_class();
-	$css = $element . ' {' . $css . '}';
-
-	$csstidy = new csstidy();
-	$csstidy->optimise = new safecss( $csstidy );
-	$csstidy->set_cfg( 'remove_bslash',              false );
-	$csstidy->set_cfg( 'compress_colors',            false );
-	$csstidy->set_cfg( 'compress_font-weight',       false );
-	$csstidy->set_cfg( 'discard_invalid_properties', true  );
-	$csstidy->set_cfg( 'merge_selectors',            false );
-
-	$css = preg_replace( '/\\\\([0-9a-fA-F]{4})/', '\\\\\\\\$1', $css );
-	$css = wp_kses_split( $css, array(), array() );
-	$csstidy->parse( $css );
-
-	$css = $csstidy->print->plain();
-
-	$css = str_replace( array( "\n","\r","\t" ), '', $css );
-
-	preg_match( "/^{$element}\s*{(.*)}\s*$/", $css, $matches );
-
-	if ( empty( $matches[1] ) )
-		return '';
-
-	return $matches[1];
-}
-endif;
-
-?>
