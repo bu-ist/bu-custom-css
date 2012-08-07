@@ -8,6 +8,8 @@ Version: 1.5-BU1
 Author URI: http://automattic.com/
 */
 
+define('BU_SAFECSS_FILENAME', 'custom.css');
+
 /**
  * Add local textdomain
  */
@@ -161,6 +163,8 @@ function get_current_revision() {
  */
 function save_revision( $css, $is_preview = false ) {
 
+	$css = apply_filters('pre_safecss_save_revision', $css);
+	
 	// If null, there was no original safecss record, so create one
 	if ( !$safecss_post = get_safecss_post() ) {
 		$post = array();
@@ -172,6 +176,7 @@ function save_revision( $css, $is_preview = false ) {
 		// Insert the CSS into wp_posts
 		$post_id = wp_insert_post( $post );
 
+		do_action('post_safecss_save_revision', $safecss_post, $is_preview);
 		return true;
 	}
 
@@ -183,6 +188,8 @@ function save_revision( $css, $is_preview = false ) {
 
 	else if ( !defined( 'DOING_MIGRATE' ) )
 		_wp_put_post_revision( $safecss_post );
+	
+	do_action('post_safecss_save_revision', $safecss_post, $is_preview);
 }
 
 function safecss_skip_stylesheet() {
@@ -332,6 +339,10 @@ function safecss() {
 
 	$css = str_replace( array( '\\\00BB \\\0020', '\0BB \020', '0BB 020' ), '\00BB \0020', $css );
 
+	if ( empty($css) and $safecss_file = bu_safecss_get_file() ) {
+		$css = file_get_contents($safecss_file);
+	}
+	
 	if ( empty( $css ) ) {
 		$css = _e( '/* Welcome to Custom CSS!
 
@@ -383,6 +394,16 @@ function safecss_style() {
 
 	if ( safecss_is_freetrial() && ( !safecss_is_preview() || !current_user_can( 'switch_themes' ) ) )
 		return;
+	
+	// shortcircuit if not preview, and output the stylesheet tag
+	if ( !safecss_is_preview() ) {
+		// quickly handle actual css
+		if( $href = bu_safecss_get_file(true) ) {
+			?><link rel="stylesheet" type="text/css" href="<?php echo esc_attr( $href ); ?>" /><?php
+			return true;
+		}
+		return false;
+	}
 
 	$option = safecss_is_preview() ? 'safecss_preview' : 'safecss';
 
@@ -557,6 +578,17 @@ function safecss_admin() {
 <div id="poststuff" class="metabox-holder<?php echo 2 == $screen_layout_columns ? ' has-right-sidebar' : ''; ?>">
 <div class="wrap">
 <h2><?php _e( 'CSS Stylesheet Editor', 'safecss' ); ?></h2>
+
+
+<?php if( bu_safecss_process_file_updates() ): ?>
+<div class="error">
+	<p>
+		<strong>CSS File Updated Directly</strong>
+		<?php echo bu_safecss_filename(); ?> file was updated directly. We have refreshed the editor below with the new content.
+	</p>
+</div>
+<?php endif; ?>
+
 <form id="safecssform" action="" method="post">
 	<p><textarea id="safecss" name="safecss"><?php echo str_replace('</textarea>', '&lt;/textarea&gt', safecss()); ?></textarea></p>
 	<p class="custom-css-help"><?php _e('For help with CSS try <a href="http://www.w3schools.com/css/default.asp">W3Schools</a>, <a href="http://alistapart.com/">A List Apart</a>, and our own <a href="http://support.wordpress.com/editing-css/">CSS documentation</a> and <a href="http://en.forums.wordpress.com/forum/css-customization">CSS Forum</a>.', 'safecss'); ?></p>
@@ -602,4 +634,93 @@ if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
 </div>
 </div>
 <?php
+}
+
+
+/**
+ * Get the filename for custom css file
+ * 
+ * @return string
+ */
+function bu_safecss_filename() {
+	$filename = BU_SAFECSS_FILENAME;
+	return apply_filters('bu_safecss_filename', $filename);
+}
+
+
+/**
+ * Get the file (path or url) to custom css file
+ * 
+ * @param boolean $url true to get frontend URL, false (default) to get absolute path
+ * @param boolean $projected true if file existence doesn't matter, false (default) if it does
+ * @return boolean|string if the custom css file is found, returns it or false
+ */
+function bu_safecss_get_file($url = false, $projected = false) {
+	
+	$filename = bu_safecss_filename();
+	$filepath = ABSPATH . get_option('upload_path') . '/' . $filename;
+	$siteurl = get_option('siteurl');
+	if (file_exists($filepath) or $projected) {
+		if( $url ) return $siteurl . '/files/' . $filename;
+		else return $filepath;
+	}
+	return false;
+}
+
+
+/**
+ * Saves the revision to a static file in uploads folder
+ * 
+ * @param post $p
+ * @param boolean $is_preview
+ * @return boolean true if file saved, false otherwise
+ */
+function bu_safecss_save_revision_to_file($p, $is_preview) {
+	if ( false !== $is_preview ) return false;
+	
+	if ( $safecss_post = get_safecss_post() ) {
+		// save css to file
+		$file = bu_safecss_get_file(false, true);
+		$dir = dirname($file);
+
+		if(is_dir($dir) && is_writable($dir)) {
+			$temp_file = tempnam('/tmp', BU_SAFECSS_FILENAME);
+
+			if ($temp_file) {
+				$f = @fopen($temp_file, 'w');
+
+				if ($f) {
+					fwrite($f, $safecss_post['post_content']);
+					fclose($f);
+
+					@rename($temp_file, $file); // atomic on unix
+					@chmod($file, 0664);
+				}
+			}
+			return true;
+		} else {
+			error_log("Could not update the custom CSS file. Directory ($dir) is not writable.");
+		}
+	}
+	return false;
+}
+add_action('post_safecss_save_revision', 'bu_safecss_save_revision_to_file', 10, 2);
+
+
+/**
+ * Pick up any updates in the custom css file (i.e. updates happening outside wordpress, like through ftp/ssh)
+ * 
+ * @return boolean true|false indicating if newer content was retrieved from custom css file
+ */
+function bu_safecss_process_file_updates() {
+	
+	if ( $filepath = bu_safecss_get_file() ) {
+		$safecss_post = get_safecss_post();
+		$newcss = file_get_contents($filepath);
+		if( $safecss_post and $safecss_post['post_content'] != $newcss ) {
+			save_revision($newcss);
+			return true;
+		}
+	}
+	return false;
 }
