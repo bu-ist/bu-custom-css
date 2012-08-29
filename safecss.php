@@ -279,7 +279,6 @@ function safecss_init() {
 			// Cache Buster
 			update_option( 'safecss_preview_rev', intval( get_option( 'safecss_preview_rev' ) ) + 1 );
 			update_option( 'safecss_preview_add', $add_to_existing );
-			update_option( 'safecss_preview_content_width', $custom_content_width );
 			wp_redirect( add_query_arg( 'csspreview', 'true', get_option( 'home' ) ) );
 
 			exit;
@@ -289,7 +288,6 @@ function safecss_init() {
 		save_revision( $css );
 		update_option( 'safecss_rev', intval( get_option( 'safecss_rev' ) ) + 1 );
 		update_option( 'safecss_add', $add_to_existing );
-		update_option( 'safecss_content_width', $custom_content_width );
 
 		add_action( 'admin_notices', 'safecss_saved' );
 	}
@@ -341,45 +339,6 @@ function safecss() {
 
 	if ( empty($css) and $safecss_file = bu_safecss_get_file() ) {
 		$css = file_get_contents($safecss_file);
-	}
-	
-	if ( empty( $css ) ) {
-		$css = _e( '/* Welcome to Custom CSS!
-
-If you are familiar with CSS or you have a stylesheet ready to paste, you may delete these comments and get started.
-
-CSS (Cascading Style Sheets) is a kind of code that tells the browser how to render a web page. Here\'s an example:
-
-img { border: 1px solid red; }
-
-That line basically means "give images a red border one pixel thick."
-
-CSS is not very hard to learn. If you already know a little HTML it will be fun to move things around on the web page by changing your stylesheet. There are many free references to help you get started. You can find helpful links, starter stylesheets and knowledgable people in the forum:
-http://wordpress.com/forums/forum.php?id=3
-
-We hope you enjoy developing your custom CSS. Here are a few things to keep in mind:
-
-You can not edit the stylesheets of your theme. Your stylesheet will be loaded after the theme stylesheets, which means that your rules can take precedence and override the theme CSS rules. The Sandbox theme is recommended for those who would prefer to start from scratch.
-
-CSS comments will be stripped from your stylesheet. */
-
-/* This is a comment. Comments begin with /* and end with */
-
-/*
-Things we strip out include:
- * HTML code
- * @import rules
- * expressions
- * invalid and unsafe code
- * URLs not using the http: protocol
-
-Things we encourage include:
- * @media blocks!
- * sharing your CSS!
- * testing in several browsers!
- * helping others in the forum!
-', 'safecss' );
-$css .= "\n*/";
 	}
 
 	return $css;
@@ -505,7 +464,7 @@ function safecss_menu() {
 	global $pagenow;
 
 	$parent = 'themes.php';
-	$title  = __( 'Edit CSS', 'safecss' );
+	$title  = __( 'Custom CSS', 'safecss' );
 	$hook   = add_submenu_page( $parent, $title, $title, 'switch_themes', 'editcss', 'safecss_admin' );
 	add_action( "admin_print_scripts-$hook", 'safe_css_enqueue_scripts' );
 	add_action( "admin_head-$hook", 'safecss_admin_head' );
@@ -566,6 +525,10 @@ function safecss_saved() {
 	echo '<div id="message" class="updated fade"><p><strong>' . __('Stylesheet saved.', 'safecss') . '</strong></p></div>';
 }
 
+/**
+ * Show the admin screen for editing CSS
+ * @global int $screen_layout_columns
+ */
 function safecss_admin() {
 	global $screen_layout_columns;
 
@@ -596,10 +559,7 @@ function safecss_admin() {
 	<p><label><input type="radio" name="add_to_existing" value="true" <?php if ( get_option( 'safecss_add') != 'no' ) echo ' checked="checked"'; ?> /> <?php printf( __( 'Add this to the %s theme\'s CSS stylesheet (<a href="%s">view original stylesheet</a>)', 'safecss' ), get_current_theme(), get_bloginfo( 'stylesheet_directory' ) . '/style.css' . '?minify=false' ); ?></label><br />
 	<label><input type="radio" name="add_to_existing" value="false" <?php if ( get_option( 'safecss_add') == 'no' ) echo ' checked="checked"'; ?> /> <?php _e( 'Start from scratch and just use this ', 'safecss' ); ?></label>
 	</p>
-
-	<h4> <?php _e( "If you change the width of your main content column, make sure your media files fit. Enter the maximum width for media files in your new CSS below.", 'safecss' ); ?></h4>
-	<p class="custom_content_width"><label for="custom_content_width"><?php _e( 'Limit width to', 'safecss' ); ?></label>
-	<input type="text" name="custom_content_width" id="custom_content_width" value="<?php echo $custom_content_width; ?>" size=5 /> <?php printf( __( 'pixels for videos, full size images, and other shortcodes. (<a href="%s">more info</a>)', 'safecss' ), 'http://support.wordpress.com/editing-css/#limited-width'); ?></p>
+	
 	<p class="submit">
 		<input type="hidden" name="action" value="save" />
 
