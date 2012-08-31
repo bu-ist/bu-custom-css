@@ -265,10 +265,10 @@ function safecss_init() {
 		else
 			$custom_content_width = false;
 
-		if ( $_POST['add_to_existing'] == 'true' )
-			$add_to_existing = 'yes';
-		else
+		if ( $_POST['add_to_existing'] == 'false' )
 			$add_to_existing = 'no';
+		else
+			$add_to_existing = 'yes';
 
 		if ( 'preview' == $_POST['action'] || safecss_is_freetrial() ) {
 			$is_preview = true;
@@ -436,18 +436,16 @@ function safecss_preview_flag() {
 	if ( is_admin() )
 		return;
 
-	$message = wp_specialchars( __( 'Preview: changes must be saved or they will be lost', 'safecss' ), 'single' );
+	$message = '<strong>' . esc_js( __( 'You are previewing custom CSS.') ) . '</strong> ' . esc_js( __( 'Don\'t forget to save any changes, or they will be lost.', 'safecss' ) );
 	return "
 <script type='text/javascript'>
 // <![CDATA[
 var flag = document.createElement('div');
 flag.innerHTML = '$message';
-flag.style.background = 'black';
-flag.style.color = 'white';
-flag.style.textAlign = 'center';
-flag.style.fontSize = '15px';
-flag.style.padding = '1px';
-document.body.style.paddingTop = '32px';
+flag.style.background = '#fefacb';
+flag.style.color = 'black';
+flag.style.fontSize = '13px';
+flag.style.padding = '10px';
 document.body.insertBefore(flag, document.body.childNodes[0]);
 var ulink = document.getElementById('upgradelink');
 if(ulink) {
@@ -467,58 +465,16 @@ function safecss_menu() {
 	$title  = __( 'Custom CSS', 'safecss' );
 	$hook   = add_submenu_page( $parent, $title, $title, 'switch_themes', 'editcss', 'safecss_admin' );
 	add_action( "admin_print_scripts-$hook", 'safe_css_enqueue_scripts' );
-	add_action( "admin_head-$hook", 'safecss_admin_head' );
+	add_action( "admin_print_styles-$hook", 'safe_css_enqueue_styles' );
 }
 
 function safe_css_enqueue_scripts() {
 	wp_enqueue_script( 'postbox' );
+	wp_enqueue_script( 'bu_safecss_admin_script', plugins_url('/interface/js/admin.js', __FILE__) );
 }
 
-function safecss_admin_head() {
-?>
-
-<style type="text/css">
-.wrap form.safecss {
-	margin-right: 10px;
-}
-.wrap textarea#safecss {
-	width: 100%;
-	height: 100%;
-}
-</style>
-<script type="text/javascript">
-/*<![CDATA[*/
-safecssResize = function() {
-	var hh, bh, h, o = document.getElementById('safecss');
-	hh = document.body.parentNode.clientHeight;
-	bh = document.body.clientHeight;
-	h = o.offsetHeight + hh - bh + 100;
-	o.style.height = (h > 250 ? h : 250) + 'px';
-}
-safecssInit = function() {
-	postboxes.add_postbox_toggles('editcss');
-	safecssResize();
-	var button = document.getElementById('preview');
-	button.onclick = function(event) {
-		//window.open('<?php echo add_query_arg('csspreview', 'true', get_option('home')); ?>');
-
-		document.forms["safecssform"].target = "csspreview";
-		document.forms["safecssform"].action.value = 'preview';
-		document.forms["safecssform"].submit();
-		document.forms["safecssform"].target = "";
-		document.forms["safecssform"].action.value = 'save';
-
-		event = event || window.event;
-		if ( event.preventDefault ) event.preventDefault();
-		return false;
-	}
-}
-window.onresize = safecssResize;
-addLoadEvent(safecssInit);
-/*]]>*/
-</script>
-
-<?php
+function safe_css_enqueue_styles() {
+	wp_enqueue_style( 'bu_safecss_admin_style', plugins_url('/interface/css/admin.css', __FILE__) );
 }
 
 function safecss_saved() {
@@ -531,53 +487,35 @@ function safecss_saved() {
  */
 function safecss_admin() {
 	global $screen_layout_columns;
+	$screen_layout_columns = 2;
+	include('interface/admin.php');
+}
 
-	$custom_content_width = intval( get_option( 'safecss_content_width' ) );
+/**
+ * Metabox to show options like how the original stylesheet css should be handled
+ * @param type $safecss_post
+ */
+function bu_safecss_original_css_metabox( $safecss_post ) {
+	$stylesheet = get_bloginfo( 'stylesheet_directory' ) . '/style.css' . '?minify=false';
+	$theme = get_current_theme();
+	include('interface/original-css-metabox.php');
+}
 
-	// if custom content width hasn't been overridden and the theme has a content_width value, use that as a default
-	if ( $custom_content_width <= 0 && !empty( $GLOBALS['content_width'] ) )
-		$custom_content_width = intval( $GLOBALS['content_width'] );
-?>
-<div id="poststuff" class="metabox-holder<?php echo 2 == $screen_layout_columns ? ' has-right-sidebar' : ''; ?>">
-<div class="wrap">
-<h2><?php _e( 'CSS Stylesheet Editor', 'safecss' ); ?></h2>
+/**
+ * Metabox to show publish options
+ * @param type $safecss_post
+ */
+function bu_safecss_submit_metabox( $safecss_post ) {
+	include('interface/submit-metabox.php');
+}
 
-
-<?php if( bu_safecss_process_file_updates() ): ?>
-<div class="error">
-	<p>
-		<strong>CSS File Updated Directly</strong>
-		<?php echo bu_safecss_filename(); ?> file was updated directly. We have refreshed the editor below with the new content.
-	</p>
-</div>
-<?php endif; ?>
-
-<form id="safecssform" action="" method="post">
-	<p><textarea id="safecss" name="safecss"><?php echo str_replace('</textarea>', '&lt;/textarea&gt', safecss()); ?></textarea></p>
-	<p class="custom-css-help"><?php _e('For help with CSS try <a href="http://www.w3schools.com/css/default.asp">W3Schools</a>, <a href="http://alistapart.com/">A List Apart</a>, and our own <a href="http://support.wordpress.com/editing-css/">CSS documentation</a> and <a href="http://en.forums.wordpress.com/forum/css-customization">CSS Forum</a>.', 'safecss'); ?></p>
-	<h4><?php _e("Do you want to make changes to your current theme's stylesheet, or do you want to start from scratch?", 'safecss'); ?></h4>
-	<p><label><input type="radio" name="add_to_existing" value="true" <?php if ( get_option( 'safecss_add') != 'no' ) echo ' checked="checked"'; ?> /> <?php printf( __( 'Add this to the %s theme\'s CSS stylesheet (<a href="%s">view original stylesheet</a>)', 'safecss' ), get_current_theme(), get_bloginfo( 'stylesheet_directory' ) . '/style.css' . '?minify=false' ); ?></label><br />
-	<label><input type="radio" name="add_to_existing" value="false" <?php if ( get_option( 'safecss_add') == 'no' ) echo ' checked="checked"'; ?> /> <?php _e( 'Start from scratch and just use this ', 'safecss' ); ?></label>
-	</p>
+/**
+ * Metabox to show revisions
+ * @param post-assoc-array $safecss_post
+ */
+function bu_safecss_revisions_metabox( $safecss_post ) {
 	
-	<p class="submit">
-		<input type="hidden" name="action" value="save" />
-
-		<?php wp_nonce_field('safecss') ?>
-
-		<input type="button" class="button" id="preview" name="preview" value="<?php _e('Preview', 'safecss') ?>" />
-<?php if ( !safecss_is_freetrial() ) : ?>
-		<input type="submit" class="button" id="save" name="save" value="<?php _e('Save Stylesheet &raquo;', 'safecss') ?>" />
-<?php endif; ?>
-		<?php wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false ); ?>
-	</p>
-</form>
-
-<?php
-$safecss_post = get_safecss_post();
-
-if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
-	function post_revisions_meta_box( $safecss_post ) {
+	if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
 		// Specify numberposts and ordering args
 		$args = array( 'numberposts' => 5, 'orderby' => 'ID', 'order' => 'DESC' );
 		// Remove numberposts from args if show_all_rev is specified
@@ -586,15 +524,14 @@ if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
 
 		wp_list_post_revisions( $safecss_post['ID'], $args );
 	}
+}
 
-	add_meta_box( 'revisionsdiv', __( 'CSS Revisions', 'safecss' ), 'post_revisions_meta_box', 'editcss', 'normal' );
-	do_meta_boxes( 'editcss', 'normal', $safecss_post );
+function bu_safecss_metabox_original_css() {
+	add_meta_box( 'bu_safecss_originalcssdiv', __( 'Original CSS', 'safecss' ), 'bu_safecss_original_css_metabox', 'editcss', 'normal' );
+	add_meta_box( 'revisionsdiv', __( 'Revisions', 'safecss' ), 'bu_safecss_revisions_metabox', 'editcss', 'normal' );
+	add_meta_box( 'submitdiv', __( 'Publish', 'safecss' ), 'bu_safecss_submit_metabox', 'editcss', 'side' );
 }
-?>
-</div>
-</div>
-<?php
-}
+add_action('admin_menu', 'bu_safecss_metabox_original_css');
 
 
 /**
@@ -670,16 +607,17 @@ add_action('post_safecss_save_revision', 'bu_safecss_save_revision_to_file', 10,
 /**
  * Pick up any updates in the custom css file (i.e. updates happening outside wordpress, like through ftp/ssh)
  * 
- * @return boolean true|false indicating if newer content was retrieved from custom css file
+ * @return last-mod-time|false non-false response indicates that newer content was retrieved from custom css file
  */
 function bu_safecss_process_file_updates() {
 	
 	if ( $filepath = bu_safecss_get_file() ) {
 		$safecss_post = get_safecss_post();
+		$mod_time = get_post_modified_time(get_option('date_format') . ' ' . get_option('time_format'), null, $safecss_post['ID']);
 		$newcss = file_get_contents($filepath);
 		if( $safecss_post and $safecss_post['post_content'] != $newcss ) {
 			save_revision($newcss);
-			return true;
+			return $mod_time;
 		}
 	}
 	return false;
