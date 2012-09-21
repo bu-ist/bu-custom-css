@@ -16,15 +16,17 @@
 				</div>
 				<?php endif; ?>
 
+				<?php if( defined('BU_CMS') and BU_CMS ): ?>
 				<div class="error">
 					<p>
 						<strong>Important:</strong>
 						Adding custom CSS to your theme can have a negative effect on the appearance of your pages.
-						The IS&amp;T Help Desk cannot support websites with custom CSS enabled.
-						Therefore, by using the CSS editor, you agree to take full responsibility for the appearance of your website.
+						The IS&amp;T Help Desk does not support custom styles created using this tool.
+						By using this tool, you agree to take full responsibility for the appearance of your website,
+						and that your website will remain in compliance with the <a href="http://www.bu.edu/brand/websites/" target="_blank">University branding guidelines</a>.
 					</p>
 				</div>
-
+				<?php endif; ?>
 
 				<div class="postbox">
 					<h3><span>Custom CSS</span></h3>
