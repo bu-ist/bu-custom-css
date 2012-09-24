@@ -1,22 +1,42 @@
 <?php
 /*
-Plugin Name: WordPress.com Custom CSS
-Plugin URI: http://automattic.com/
-Description: Allows CSS editing with strict filtering for malicious code
-Author: Automattic
+Plugin Name: BU Custom CSS Editor
+Description: Allows CSS editing with an option to override the original theme CSS.
+Author: Boston University (IS&T)
+Author URI: http://www.bu.edu/tech/
 Version: 1.5-BU1
-Author URI: http://automattic.com/
 */
 
-define('BU_SAFECSS_FILENAME', 'custom.css');
+/**
+Copyright Automattic
+Copyright Boston University
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+**/
+
+
+define('BUCC_FILENAME', 'custom.css');
 
 /**
  * Add local textdomain
  */
-add_action( 'init', 'safecss_load_plugin_textdomain' );
+add_action( 'init', 'bucc_load_plugin_textdomain' );
 
-function safecss_load_plugin_textdomain() {
-	load_plugin_textdomain( 'safecss', false, 'safecss/languages' );
+function bucc_load_plugin_textdomain() {
+	load_plugin_textdomain( 'safecss', false, 'bu-custom-css/languages' );
 }
 
 
@@ -25,7 +45,7 @@ function safecss_load_plugin_textdomain() {
  *
  * @return void
  */
-function migrate() {
+function bucc_migrate() {
 	$css = get_option( 'safecss' );
 
 	// Check if CSS is stored in wp_options
@@ -57,13 +77,13 @@ function migrate() {
 		define( 'DOING_MIGRATE', true );
 
 		// Get hashes of safecss post and current revision
-		$safecss_post = get_safecss_post();
+		$safecss_post = bucc_get_post();
 
 		if ( null == $safecss_post )
 			return;
 
 		$safecss_post_hash = md5( $safecss_post['post_content'] );
-		$current_revision = get_current_revision();
+		$current_revision = bucc_get_current_revision();
 
 		if ( null == $current_revision )
 			return;
@@ -72,7 +92,7 @@ function migrate() {
 
 		// If hashes are not equal, set safecss post with content from current revision
 		if ( $safecss_post_hash !== $current_revision_hash ) {
-			save_revision( $current_revision['post_content'] );
+			bucc_save_revision( $current_revision['post_content'] );
 
 			// Reset post_content to display the migrated revsion
 			$safecss_post['post_content'] = $current_revision['post_content'];
@@ -83,7 +103,7 @@ function migrate() {
 	}
 }
 
-function safecss_revision_redirect( $redirect ) {
+function bucc_revision_redirect( $redirect ) {
 	global $post;
 
 	if ( 'safecss' == $post->post_type ) {
@@ -99,9 +119,9 @@ function safecss_revision_redirect( $redirect ) {
 }
 
 // Add safecss to allowed post_type's for revision
-add_filter('revision_redirect', 'safecss_revision_redirect');
+add_filter('revision_redirect', 'bucc_revision_redirect');
 
-function safecss_revision_post_link( $post_link ) {
+function bucc_revision_post_link( $post_link ) {
 	global $post;
 
 	if ( isset( $post ) && ( 'safecss' == $post->post_type ) )
@@ -112,14 +132,14 @@ function safecss_revision_post_link( $post_link ) {
 }
 
 // Override the edit link, the default link causes a redirect loop
-add_filter('get_edit_post_link', 'safecss_revision_post_link');
+add_filter('get_edit_post_link', 'bucc_revision_post_link');
 
 /**
  * Get the safecss record
  *
  * @return array
  */
-function get_safecss_post() {
+function bucc_get_post() {
 
 	if ( $a = array_shift( get_posts( array( 'numberposts' => 1, 'post_type' => 'safecss', 'post_status' => 'publish' ) ) ) )
 		$safecss_post = get_object_vars( $a );
@@ -134,9 +154,9 @@ function get_safecss_post() {
  *
  * @return object
  */
-function get_current_revision() {
+function bucc_get_current_revision() {
 
-	if ( !$safecss_post = get_safecss_post() )
+	if ( !$safecss_post = bucc_get_post() )
 		return false;
 
 	if ( !empty( $safecss_post['ID'] ) )
@@ -161,12 +181,12 @@ function get_current_revision() {
  * @param bool $is_preview
  * @return bool
  */
-function save_revision( $css, $is_preview = false ) {
+function bucc_save_revision( $css, $is_preview = false ) {
 
-	$css = apply_filters('pre_safecss_save_revision', $css);
+	$css = apply_filters('pre_bucc_save_revision', $css);
 	
 	// If null, there was no original safecss record, so create one
-	if ( !$safecss_post = get_safecss_post() ) {
+	if ( !$safecss_post = bucc_get_post() ) {
 		$post = array();
 		$post['post_content'] = $css;
 		$post['post_title']   = 'safecss';
@@ -176,7 +196,7 @@ function save_revision( $css, $is_preview = false ) {
 		// Insert the CSS into wp_posts
 		$post_id = wp_insert_post( $post );
 
-		do_action('post_safecss_save_revision', $safecss_post, $is_preview);
+		do_action('post_bucc_save_revision', $safecss_post, $is_preview);
 		return true;
 	}
 
@@ -189,18 +209,18 @@ function save_revision( $css, $is_preview = false ) {
 	else if ( !defined( 'DOING_MIGRATE' ) )
 		_wp_put_post_revision( $safecss_post );
 	
-	do_action('post_safecss_save_revision', $safecss_post, $is_preview);
+	do_action('post_bucc_save_revision', $safecss_post, $is_preview);
 }
 
-function safecss_skip_stylesheet() {
+function bucc_skip_stylesheet() {
 
-	if ( safecss_is_preview() )
+	if ( bucc_is_preview() )
 		return (bool) ( get_option('safecss_preview_add') == 'no' );
 	else
 		return (bool) ( get_option('safecss_add') == 'no' );
 }
 
-function safecss_init() {
+function bucc_init() {
 	// Register safecss as a custom post_type
 	register_post_type( 'safecss', array(
 		'supports' => array( 'revisions' )
@@ -217,21 +237,21 @@ function safecss_init() {
 			$current_plugins = apply_filters( 'active_plugins', get_option( 'active_plugins' ) );
 		}
 
-		safecss_print();
+		bucc_print();
 
 		exit;
 	}
 
 	// Do migration routine if necessary
 	if ( !empty( $_GET['page'] ) && ( 'editcss' == $_GET['page'] ) && is_admin() )
-		migrate();
+		bucc_migrate();
 
-	add_action('wp_head', 'safecss_style', 101);
+	add_action('wp_head', 'bucc_style', 101);
 
 	if ( !current_user_can( 'switch_themes' ) && !is_super_admin() )
 		return;
 
-	add_action('admin_menu', 'safecss_menu');
+	add_action('admin_menu', 'bucc_menu');
 
 	if ( isset( $_POST['safecss'] ) && false == strstr( $_SERVER[ 'REQUEST_URI' ], 'options.php' ) ) {
 		check_admin_referer('safecss');
@@ -270,11 +290,11 @@ function safecss_init() {
 		else
 			$add_to_existing = 'yes';
 
-		if ( 'preview' == $_POST['action'] || safecss_is_freetrial() ) {
+		if ( 'preview' == $_POST['action'] || bucc_is_freetrial() ) {
 			$is_preview = true;
 
 			// Save the CSS
-			save_revision( $css, $is_preview );
+			bucc_save_revision( $css, $is_preview );
 
 			// Cache Buster
 			update_option( 'safecss_preview_rev', intval( get_option( 'safecss_preview_rev' ) ) + 1 );
@@ -285,40 +305,40 @@ function safecss_init() {
 		}
 
 		// Save the CSS
-		save_revision( $css );
+		bucc_save_revision( $css );
 		update_option( 'safecss_rev', intval( get_option( 'safecss_rev' ) ) + 1 );
 		update_option( 'safecss_add', $add_to_existing );
 
-		add_action( 'admin_notices', 'safecss_saved' );
+		add_action( 'admin_notices', 'bucc_saved' );
 	}
 
 	// Modify all internal links so that preview state persists
-	if ( safecss_is_preview() )
-		ob_start('safecss_buffer');
+	if ( bucc_is_preview() )
+		ob_start('bucc_buffer');
 }
-add_action('init', 'safecss_init');
+add_action('init', 'bucc_init');
 
-function safecss_is_preview() {
+function bucc_is_preview() {
 	return isset( $_GET['csspreview'] ) && $_GET['csspreview'] === 'true';
 }
 
-function safecss_is_freetrial() {
+function bucc_is_freetrial() {
 	return false;
 }
 
-function safecss() {
-	if ( safecss_is_freetrial() && ( !current_user_can( 'switch_themes' ) || !safecss_is_preview() ) && !is_admin() )
+function bucc() {
+	if ( bucc_is_freetrial() && ( !current_user_can( 'switch_themes' ) || !bucc_is_preview() ) && !is_admin() )
 		return '/* */';
 
-	$option = ( safecss_is_preview() || safecss_is_freetrial() ) ? 'safecss_preview' : 'safecss';
+	$option = ( bucc_is_preview() || bucc_is_freetrial() ) ? 'safecss_preview' : 'safecss';
 	$css    = '';
 
 	if ( 'safecss' == $option ) {
 		if ( get_option( 'safecss_revision_migrated' ) )
-			if ( $safecss_post = get_safecss_post() )
+			if ( $safecss_post = bucc_get_post() )
 				$css = $safecss_post['post_content'];
 		else
-			if ( $current_revision = get_current_revision() )
+			if ( $current_revision = bucc_get_current_revision() )
 				$css = $current_revision['post_content'];
 
 		// Fix for un-migrated Custom CSS
@@ -331,40 +351,40 @@ function safecss() {
 	}
 
 	if ( 'safecss_preview' == $option ) {
-		$safecss_post = get_current_revision();
+		$safecss_post = bucc_get_current_revision();
 		$css = $safecss_post['post_content'];
 	}
 
 	$css = str_replace( array( '\\\00BB \\\0020', '\0BB \020', '0BB 020' ), '\00BB \0020', $css );
 
-	if ( empty($css) and $safecss_file = bu_safecss_get_file() ) {
+	if ( empty($css) and $safecss_file = bucc_get_file() ) {
 		$css = file_get_contents($safecss_file);
 	}
 
 	return $css;
 }
 
-function safecss_print() {
-	echo safecss();
+function bucc_print() {
+	echo bucc();
 }
 
-function safecss_style() {
+function bucc_style() {
 	global $blog_id, $current_blog;
 
-	if ( safecss_is_freetrial() && ( !safecss_is_preview() || !current_user_can( 'switch_themes' ) ) )
+	if ( bucc_is_freetrial() && ( !bucc_is_preview() || !current_user_can( 'switch_themes' ) ) )
 		return;
 	
 	// shortcircuit if not preview, and output the stylesheet tag
-	if ( !safecss_is_preview() ) {
+	if ( !bucc_is_preview() ) {
 		// quickly handle actual css
-		if( $href = bu_safecss_get_file(true) ) {
+		if( $href = bucc_get_file(true) ) {
 			?><link rel="stylesheet" type="text/css" href="<?php echo esc_attr( $href ); ?>" /><?php
 			return true;
 		}
 		return false;
 	}
 
-	$option = safecss_is_preview() ? 'safecss_preview' : 'safecss';
+	$option = bucc_is_preview() ? 'safecss_preview' : 'safecss';
 
 	// Prevent debug notices
 	$css = '';
@@ -372,10 +392,10 @@ function safecss_style() {
 	// Check if extra CSS exists
 	if ( 'safecss' == $option ) {
 		if ( get_option( 'safecss_revision_migrated' ) )
-			if ( $safecss_post = get_safecss_post() )
+			if ( $safecss_post = bucc_get_post() )
 				$css = $safecss_post['post_content'];
 		else
-			if ( $current_revision = get_current_revision() )
+			if ( $current_revision = bucc_get_current_revision() )
 				$css = $current_revision['post_content'];
 
 		// Fix for un-migrated Custom CSS
@@ -388,7 +408,7 @@ function safecss_style() {
 	}
 
 	if ( 'safecss_preview' == $option ) {
-		$safecss_post = get_current_revision();
+		$safecss_post = bucc_get_current_revision();
 		$css = $safecss_post['post_content'];
 	}
 
@@ -407,23 +427,23 @@ function safecss_style() {
 <?php
 }
 
-function safecss_style_filter( $current ) {
-	if ( safecss_is_freetrial() && ( !safecss_is_preview() || !current_user_can( 'switch_themes' ) ) )
+function bucc_style_filter( $current ) {
+	if ( bucc_is_freetrial() && ( !bucc_is_preview() || !current_user_can( 'switch_themes' ) ) )
 		return $current;
 
-	if ( safecss_skip_stylesheet() )
+	if ( bucc_skip_stylesheet() )
 		return 'http://' . $_SERVER['HTTP_HOST'] . '/wp-content/plugins/safecss/blank.css';
 
 	return $current;
 }
-add_filter( 'stylesheet_uri', 'safecss_style_filter' );
+add_filter( 'stylesheet_uri', 'bucc_style_filter' );
 
-function safecss_buffer($html) {
-	$html = str_replace( '</body>', safecss_preview_flag(), $html );
-	return preg_replace_callback( '!href=([\'"])(.*?)\\1!', 'safecss_preview_links', $html );
+function bucc_buffer($html) {
+	$html = str_replace( '</body>', bucc_preview_flag(), $html );
+	return preg_replace_callback( '!href=([\'"])(.*?)\\1!', 'bucc_preview_links', $html );
 }
 
-function safecss_preview_links( $matches ) {
+function bucc_preview_links( $matches ) {
 	if ( 0 !== strpos( $matches[2], get_option( 'home' ) ) )
 		return $matches[0];
 
@@ -432,7 +452,7 @@ function safecss_preview_links( $matches ) {
 }
 
 // Places a black bar above every preview page
-function safecss_preview_flag() {
+function bucc_preview_flag() {
 	if ( is_admin() )
 		return;
 
@@ -458,26 +478,26 @@ if(ulink) {
 ";
 }
 
-function safecss_menu() {
+function bucc_menu() {
 	global $pagenow;
 
 	$parent = 'themes.php';
 	$title  = __( 'Custom CSS', 'safecss' );
-	$hook   = add_submenu_page( $parent, $title, $title, 'switch_themes', 'editcss', 'safecss_admin' );
-	add_action( "admin_print_scripts-$hook", 'safe_css_enqueue_scripts' );
-	add_action( "admin_print_styles-$hook", 'safe_css_enqueue_styles' );
+	$hook   = add_submenu_page( $parent, $title, $title, 'switch_themes', 'editcss', 'bucc_admin' );
+	add_action( "admin_print_scripts-$hook", 'bucc_enqueue_scripts' );
+	add_action( "admin_print_styles-$hook", 'bucc_enqueue_styles' );
 }
 
-function safe_css_enqueue_scripts() {
+function bucc_enqueue_scripts() {
 	wp_enqueue_script( 'postbox' );
-	wp_enqueue_script( 'bu_safecss_admin_script', plugins_url('/interface/js/admin.js', __FILE__) );
+	wp_enqueue_script( 'bucc_admin_script', plugins_url('/interface/js/admin.js', __FILE__) );
 }
 
-function safe_css_enqueue_styles() {
-	wp_enqueue_style( 'bu_safecss_admin_style', plugins_url('/interface/css/admin.css', __FILE__) );
+function bucc_enqueue_styles() {
+	wp_enqueue_style( 'bucc_admin_style', plugins_url('/interface/css/admin.css', __FILE__) );
 }
 
-function safecss_saved() {
+function bucc_saved() {
 	echo '<div id="message" class="updated fade"><p><strong>' . __('Stylesheet saved.', 'safecss') . '</strong></p></div>';
 }
 
@@ -485,7 +505,7 @@ function safecss_saved() {
  * Show the admin screen for editing CSS
  * @global int $screen_layout_columns
  */
-function safecss_admin() {
+function bucc_admin() {
 	global $screen_layout_columns;
 	$screen_layout_columns = 2;
 	include('interface/admin.php');
@@ -495,7 +515,7 @@ function safecss_admin() {
  * Metabox to show options like how the original stylesheet css should be handled
  * @param type $safecss_post
  */
-function bu_safecss_original_css_metabox( $safecss_post ) {
+function bucc_original_css_metabox( $safecss_post ) {
 	$stylesheet = get_bloginfo( 'stylesheet_directory' ) . '/style.css' . '?minify=false';
 	$theme = get_current_theme();
 	include('interface/original-css-metabox.php');
@@ -505,7 +525,7 @@ function bu_safecss_original_css_metabox( $safecss_post ) {
  * Metabox to show publish options
  * @param type $safecss_post
  */
-function bu_safecss_submit_metabox( $safecss_post ) {
+function bucc_submit_metabox( $safecss_post ) {
 	include('interface/submit-metabox.php');
 }
 
@@ -513,7 +533,7 @@ function bu_safecss_submit_metabox( $safecss_post ) {
  * Metabox to show revisions
  * @param post-assoc-array $safecss_post
  */
-function bu_safecss_revisions_metabox( $safecss_post ) {
+function bucc_revisions_metabox( $safecss_post ) {
 	
 	if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
 		// Specify numberposts and ordering args
@@ -526,12 +546,12 @@ function bu_safecss_revisions_metabox( $safecss_post ) {
 	}
 }
 
-function bu_safecss_metabox_original_css() {
-	add_meta_box( 'bu_safecss_originalcssdiv', __( 'Original CSS', 'safecss' ), 'bu_safecss_original_css_metabox', 'editcss', 'normal' );
-	add_meta_box( 'revisionsdiv', __( 'Revisions', 'safecss' ), 'bu_safecss_revisions_metabox', 'editcss', 'normal' );
-	add_meta_box( 'submitdiv', __( 'Publish', 'safecss' ), 'bu_safecss_submit_metabox', 'editcss', 'side' );
+function bucc_metabox_original_css() {
+	add_meta_box( 'bucc_originalcssdiv', __( 'Original CSS', 'safecss' ), 'bucc_original_css_metabox', 'editcss', 'normal' );
+	add_meta_box( 'revisionsdiv', __( 'Revisions', 'safecss' ), 'bucc_revisions_metabox', 'editcss', 'normal' );
+	add_meta_box( 'submitdiv', __( 'Publish', 'safecss' ), 'bucc_submit_metabox', 'editcss', 'side' );
 }
-add_action('admin_menu', 'bu_safecss_metabox_original_css');
+add_action('admin_menu', 'bucc_metabox_original_css');
 
 
 /**
@@ -539,9 +559,9 @@ add_action('admin_menu', 'bu_safecss_metabox_original_css');
  * 
  * @return string
  */
-function bu_safecss_filename() {
-	$filename = BU_SAFECSS_FILENAME;
-	return apply_filters('bu_safecss_filename', $filename);
+function bucc_filename() {
+	$filename = BUCC_FILENAME;
+	return apply_filters('bucc_filename', $filename);
 }
 
 
@@ -552,9 +572,9 @@ function bu_safecss_filename() {
  * @param boolean $projected true if file existence doesn't matter, false (default) if it does
  * @return boolean|string if the custom css file is found, returns it or false
  */
-function bu_safecss_get_file($url = false, $projected = false) {
+function bucc_get_file($url = false, $projected = false) {
 	
-	$filename = bu_safecss_filename();
+	$filename = bucc_filename();
 	$filepath = ABSPATH . get_option('upload_path') . '/' . $filename;
 	$siteurl = get_option('siteurl');
 	if (file_exists($filepath) or $projected) {
@@ -572,16 +592,16 @@ function bu_safecss_get_file($url = false, $projected = false) {
  * @param boolean $is_preview
  * @return boolean true if file saved, false otherwise
  */
-function bu_safecss_save_revision_to_file($p, $is_preview) {
+function bucc_save_revision_to_file($p, $is_preview) {
 	if ( false !== $is_preview ) return false;
 	
-	if ( $safecss_post = get_safecss_post() ) {
+	if ( $safecss_post = bucc_get_post() ) {
 		// save css to file
-		$file = bu_safecss_get_file(false, true);
+		$file = bucc_get_file(false, true);
 		$dir = dirname($file);
 
 		if(is_dir($dir) && is_writable($dir)) {
-			$temp_file = tempnam('/tmp', BU_SAFECSS_FILENAME);
+			$temp_file = tempnam('/tmp', BUCC_FILENAME);
 
 			if ($temp_file) {
 				$f = @fopen($temp_file, 'w');
@@ -601,7 +621,7 @@ function bu_safecss_save_revision_to_file($p, $is_preview) {
 	}
 	return false;
 }
-add_action('post_safecss_save_revision', 'bu_safecss_save_revision_to_file', 10, 2);
+add_action('post_bucc_save_revision', 'bucc_save_revision_to_file', 10, 2);
 
 
 /**
@@ -609,14 +629,14 @@ add_action('post_safecss_save_revision', 'bu_safecss_save_revision_to_file', 10,
  * 
  * @return last-mod-time|false non-false response indicates that newer content was retrieved from custom css file
  */
-function bu_safecss_process_file_updates() {
+function bucc_process_file_updates() {
 	
-	if ( $filepath = bu_safecss_get_file() ) {
-		$safecss_post = get_safecss_post();
+	if ( $filepath = bucc_get_file() ) {
+		$safecss_post = bucc_get_post();
 		$mod_time = get_post_modified_time(get_option('date_format') . ' ' . get_option('time_format'), null, $safecss_post['ID']);
 		$newcss = file_get_contents($filepath);
 		if( $safecss_post and $safecss_post['post_content'] != $newcss ) {
-			save_revision($newcss);
+			bucc_save_revision($newcss);
 			return $mod_time;
 		}
 	}

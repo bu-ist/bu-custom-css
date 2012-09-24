@@ -7,7 +7,16 @@
 		<div id="post-body">
 			<div id="post-body-content">
 
-				<?php if( $last_updated = bu_safecss_process_file_updates() ): ?>
+				<?php if( function_exists('safecss') ): ?>
+				<div class="error">
+					<p>
+						<strong>You have the Wordpress.com Custom CSS plugin activated.</strong>
+						Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.
+					</p>
+				</div>
+				<?php endif; ?>
+
+				<?php if( $last_updated = bucc_process_file_updates() ): ?>
 				<div class="error">
 					<p>
 						<strong>Your Custom CSS file has been modified outside of Wordpress!</strong>
@@ -30,11 +39,11 @@
 
 				<div class="postbox">
 					<h3><span>Custom CSS</span></h3>
-					<textarea id="safecss" name="safecss"><?php echo str_replace('</textarea>', '&lt;/textarea&gt', safecss()); ?></textarea>
+					<textarea id="safecss" name="safecss"><?php echo str_replace('</textarea>', '&lt;/textarea&gt', bucc()); ?></textarea>
 				</div>
 
 				<?php
-				$safecss_post = get_safecss_post();
+				$safecss_post = bucc_get_post();
 				do_meta_boxes( 'editcss', 'normal', $safecss_post );
 				?>
 			</div>
