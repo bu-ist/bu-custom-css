@@ -586,42 +586,43 @@ function bucc_get_file($url = false, $projected = false) {
 
 
 /**
- * Saves the revision to a static file in uploads folder
+ * Saves the updated safecss a static file in uploads folder
  * 
- * @param post $p
- * @param boolean $is_preview
+ * @param int $post_id
+ * @param object $post
  * @return boolean true if file saved, false otherwise
  */
-function bucc_save_revision_to_file($p, $is_preview) {
-	if ( false !== $is_preview ) return false;
+function bucc_save_to_file($post_id, $post) {
 	
-	if ( $safecss_post = bucc_get_post() ) {
-		// save css to file
-		$file = bucc_get_file(false, true);
-		$dir = dirname($file);
+	if ( !$post or $post->post_type != 'safecss' ) return;
+	if( defined('DOING_AUTOSAVE') and DOING_AUTOSAVE ) return;
+	
+	// save css to file
+	$file = bucc_get_file(false, true);
+	$dir = dirname($file);
 
-		if(is_dir($dir) && is_writable($dir)) {
-			$temp_file = tempnam('/tmp', BUCC_FILENAME);
+	if(is_dir($dir) && is_writable($dir)) {
+		$temp_file = tempnam('/tmp', BUCC_FILENAME);
 
-			if ($temp_file) {
-				$f = @fopen($temp_file, 'w');
+		if ($temp_file) {
+			$f = @fopen($temp_file, 'w');
 
-				if ($f) {
-					fwrite($f, $safecss_post['post_content']);
-					fclose($f);
+			if ($f) {
+				fwrite($f, $post->post_content);
+				fclose($f);
 
-					@rename($temp_file, $file); // atomic on unix
-					@chmod($file, 0664);
-				}
+				@rename($temp_file, $file); // atomic on unix
+				@chmod($file, 0664);
 			}
-			return true;
-		} else {
-			error_log("Could not update the custom CSS file. Directory ($dir) is not writable.");
 		}
+		return true;
+	} else {
+		error_log("Could not update the custom CSS file. Directory ($dir) is not writable.");
 	}
+	
 	return false;
 }
-add_action('post_bucc_save_revision', 'bucc_save_revision_to_file', 10, 2);
+add_action('save_post', 'bucc_save_to_file', 10, 2);
 
 
 /**
