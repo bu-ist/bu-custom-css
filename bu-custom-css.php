@@ -39,70 +39,6 @@ function bucc_load_plugin_textdomain() {
 	load_plugin_textdomain( 'safecss', false, 'bu-custom-css/languages' );
 }
 
-
-/**
- * Migration routine for moving safecss from wp_options to wp_posts to support revisions
- *
- * @return void
- */
-function bucc_migrate() {
-	$css = get_option( 'safecss' );
-
-	// Check if CSS is stored in wp_options
-	if ( $css ) {
-		// Remove the async actions from publish_post
-		remove_action( 'publish_post', 'queue_publish_post' );
-
-		$post = array();
-		$post['post_content'] = $css;
-		$post['post_title']   = 'safecss';
-		$post['post_status']  = 'publish';
-		$post['post_type']    = 'safecss';
-
-		// Insert the CSS into wp_posts
-		$post_id = wp_insert_post( $post );
-
-		// Check for errors
-		if ( !$post_id or is_wp_error( $post_id ) )
-			die( $post_id->get_error_message() );
-
-		// Delete safecss option
-		delete_option( 'safecss' );
-	}
-
-	unset( $css );
-
-	// Check if we have already done this
-	if ( !get_option( 'safecss_revision_migrated' ) ) {
-		define( 'DOING_MIGRATE', true );
-
-		// Get hashes of safecss post and current revision
-		$safecss_post = bucc_get_post();
-
-		if ( null == $safecss_post )
-			return;
-
-		$safecss_post_hash = md5( $safecss_post['post_content'] );
-		$current_revision = bucc_get_current_revision();
-
-		if ( null == $current_revision )
-			return;
-
-		$current_revision_hash = md5( $current_revision['post_content'] );
-
-		// If hashes are not equal, set safecss post with content from current revision
-		if ( $safecss_post_hash !== $current_revision_hash ) {
-			bucc_save_revision( $current_revision['post_content'] );
-
-			// Reset post_content to display the migrated revsion
-			$safecss_post['post_content'] = $current_revision['post_content'];
-		}
-
-		// Set option so that we dont keep doing this
-		update_option( 'safecss_revision_migrated', time() );
-	}
-}
-
 function bucc_revision_redirect( $redirect ) {
 	global $post;
 
@@ -185,10 +121,11 @@ function bucc_save_revision( $css, $is_preview = false ) {
 
 	$css = apply_filters('pre_bucc_save_revision', $css);
 	
-	// If null, there was no original safecss record, so create one
+	// If null, there was no original css post, so create one
 	if ( !$safecss_post = bucc_get_post() ) {
+		// previews should save an empty post, so we can work with revisions
 		$post = array();
-		$post['post_content'] = $css;
+		$post['post_content'] = $is_preview ? '' : $css;
 		$post['post_title']   = 'safecss';
 		$post['post_status']  = 'publish';
 		$post['post_type']    = 'safecss';
@@ -196,18 +133,23 @@ function bucc_save_revision( $css, $is_preview = false ) {
 		// Insert the CSS into wp_posts
 		$post_id = wp_insert_post( $post );
 
-		do_action('post_bucc_save_revision', $safecss_post, $is_preview);
-		return true;
+		do_action('post_bucc_save_revision_new', $safecss_post, $is_preview);
+		
+		if( $is_preview ) {
+			$safecss_post = bucc_get_post();
+		} else {
+			return true;
+		}
 	}
 
 	$safecss_post['post_content'] = $css;
 
 	// Do not update post if we are only saving a preview
-	if ( false === $is_preview )
+	if ( false === $is_preview ) {
 		wp_update_post( $safecss_post );
-
-	else if ( !defined( 'DOING_MIGRATE' ) )
+	} else {
 		_wp_put_post_revision( $safecss_post );
+	}
 	
 	do_action('post_bucc_save_revision', $safecss_post, $is_preview);
 }
@@ -241,10 +183,6 @@ function bucc_init() {
 
 		exit;
 	}
-
-	// Do migration routine if necessary
-	if ( !empty( $_GET['page'] ) && ( 'editcss' == $_GET['page'] ) && is_admin() )
-		bucc_migrate();
 
 	add_action('wp_head', 'bucc_style', 101);
 
@@ -334,20 +272,8 @@ function bucc() {
 	$css    = '';
 
 	if ( 'safecss' == $option ) {
-		if ( get_option( 'safecss_revision_migrated' ) )
-			if ( $safecss_post = bucc_get_post() )
-				$css = $safecss_post['post_content'];
-		else
-			if ( $current_revision = bucc_get_current_revision() )
-				$css = $current_revision['post_content'];
-
-		// Fix for un-migrated Custom CSS
-		if ( empty( $safecss_post ) ) {
-			$_css = get_option( 'safecss' );
-			if ( !empty( $_css ) ) {
-				$css = $_css;
-			}
-		}
+		if ( $safecss_post = bucc_get_post() )
+			$css = $safecss_post['post_content'];
 	}
 
 	if ( 'safecss_preview' == $option ) {
@@ -391,20 +317,8 @@ function bucc_style() {
 
 	// Check if extra CSS exists
 	if ( 'safecss' == $option ) {
-		if ( get_option( 'safecss_revision_migrated' ) )
-			if ( $safecss_post = bucc_get_post() )
-				$css = $safecss_post['post_content'];
-		else
-			if ( $current_revision = bucc_get_current_revision() )
-				$css = $current_revision['post_content'];
-
-		// Fix for un-migrated Custom CSS
-		if ( empty( $safecss_post ) ) {
-			$_css = get_option( 'safecss' );
-			if ( !empty( $_css ) ) {
-				$css = $_css;
-			}
-		}
+		if ( $safecss_post = bucc_get_post() )
+			$css = $safecss_post['post_content'];
 	}
 
 	if ( 'safecss_preview' == $option ) {
@@ -547,7 +461,12 @@ function bucc_revisions_metabox( $safecss_post ) {
 }
 
 function bucc_metabox_original_css() {
-	add_meta_box( 'bucc_originalcssdiv', __( 'Original CSS', 'safecss' ), 'bucc_original_css_metabox', 'editcss', 'normal' );
+	
+	// make sure overriding default css is not disabled by theme
+	if( !defined('BU_CUSTOM_CSS_DISABLE_OVERRIDE') or (defined('BU_CUSTOM_CSS_DISABLE_OVERRIDE') and !BU_CUSTOM_CSS_DISABLE_OVERRIDE) ) {
+		add_meta_box( 'bucc_originalcssdiv', __( 'Original CSS', 'safecss' ), 'bucc_original_css_metabox', 'editcss', 'normal' );
+	}
+	
 	add_meta_box( 'revisionsdiv', __( 'Revisions', 'safecss' ), 'bucc_revisions_metabox', 'editcss', 'normal' );
 	add_meta_box( 'submitdiv', __( 'Publish', 'safecss' ), 'bucc_submit_metabox', 'editcss', 'side' );
 }
@@ -594,7 +513,7 @@ function bucc_get_file($url = false, $projected = false) {
  */
 function bucc_save_to_file($post_id, $post) {
 	
-	if ( !$post or $post->post_type != 'safecss' ) return;
+	if ( !$post or $post->post_type != 'safecss' or !trim($post->post_content) ) return;
 	if( defined('DOING_AUTOSAVE') and DOING_AUTOSAVE ) return;
 	
 	// save css to file
