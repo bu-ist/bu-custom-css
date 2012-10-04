@@ -29,6 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
 define('BUCC_FILENAME', 'custom.css');
+define('BUCC_POST_TYPE', 'bucc');
+
+require_once( dirname(__FILE__) . '/includes/bu-mobile-support.php' );
 
 /**
  * Add local textdomain
@@ -42,9 +45,9 @@ function bucc_load_plugin_textdomain() {
 function bucc_revision_redirect( $redirect ) {
 	global $post;
 
-	if ( 'safecss' == $post->post_type ) {
+	if ( BUCC_POST_TYPE == $post->post_type ) {
 		if ( strstr( $redirect, 'action=edit' ) )
-			return 'themes.php?page=editcss';
+			return apply_filters('bucc_redirect_url', 'themes.php?page=editcss');
 
 		if ( 'edit.php' == $redirect )
 			return '';
@@ -54,15 +57,15 @@ function bucc_revision_redirect( $redirect ) {
 	return $redirect;
 }
 
-// Add safecss to allowed post_type's for revision
+// Add BUCC_POST_TYPE to allowed post_type's for revision
 add_filter('revision_redirect', 'bucc_revision_redirect');
 
 function bucc_revision_post_link( $post_link ) {
 	global $post;
 
-	if ( isset( $post ) && ( 'safecss' == $post->post_type ) )
+	if ( isset( $post ) && ( BUCC_POST_TYPE == $post->post_type ) )
 		if ( strstr( $post_link, 'action=edit' ) )
-			$post_link = 'themes.php?page=editcss';
+			$post_link = apply_filters('bucc_redirect_url', 'themes.php?page=editcss');
 
 	return $post_link;
 }
@@ -71,13 +74,14 @@ function bucc_revision_post_link( $post_link ) {
 add_filter('get_edit_post_link', 'bucc_revision_post_link');
 
 /**
- * Get the safecss record
+ * Get the BUCC_POST_TYPE record
  *
  * @return array
  */
 function bucc_get_post() {
-
-	if ( $a = array_shift( get_posts( array( 'numberposts' => 1, 'post_type' => 'safecss', 'post_status' => 'publish' ) ) ) )
+	$slug = apply_filters('bucc_option', BUCC_POST_TYPE);
+	
+	if ( $a = array_shift( get_posts( array( 'name' => $slug, 'numberposts' => 1, 'post_type' => BUCC_POST_TYPE, 'post_status' => 'publish' ) ) ) )
 		$safecss_post = get_object_vars( $a );
 	else
 		$safecss_post = false;
@@ -86,7 +90,7 @@ function bucc_get_post() {
 }
 
 /**
- * Get the current revision of the original safecss record
+ * Get the current revision of the original BUCC_POST_TYPE record
  *
  * @return object
  */
@@ -126,9 +130,10 @@ function bucc_save_revision( $css, $is_preview = false ) {
 		// previews should save an empty post, so we can work with revisions
 		$post = array();
 		$post['post_content'] = $is_preview ? '' : $css;
-		$post['post_title']   = 'safecss';
+		$post['post_title']   = apply_filters('bucc_option', BUCC_POST_TYPE);
+		$post['post_name']   = apply_filters('bucc_option', BUCC_POST_TYPE);
 		$post['post_status']  = 'publish';
-		$post['post_type']    = 'safecss';
+		$post['post_type']    = BUCC_POST_TYPE;
 
 		// Insert the CSS into wp_posts
 		$post_id = wp_insert_post( $post );
@@ -157,14 +162,14 @@ function bucc_save_revision( $css, $is_preview = false ) {
 function bucc_skip_stylesheet() {
 
 	if ( bucc_is_preview() )
-		return (bool) ( get_option('safecss_preview_add') == 'no' );
+		return (bool) ( get_option(apply_filters('bucc_option', 'safecss_preview_add')) == 'no' );
 	else
-		return (bool) ( get_option('safecss_add') == 'no' );
+		return (bool) ( get_option(apply_filters('bucc_option', 'safecss_add')) == 'no' );
 }
 
 function bucc_init() {
-	// Register safecss as a custom post_type
-	register_post_type( 'safecss', array(
+	// Register BUCC_POST_TYPE as a custom post_type
+	register_post_type( BUCC_POST_TYPE, array(
 		'supports' => array( 'revisions' )
 	) );
 
@@ -235,8 +240,8 @@ function bucc_init() {
 			bucc_save_revision( $css, $is_preview );
 
 			// Cache Buster
-			update_option( 'safecss_preview_rev', intval( get_option( 'safecss_preview_rev' ) ) + 1 );
-			update_option( 'safecss_preview_add', $add_to_existing );
+			update_option( apply_filters('bucc_option', 'safecss_preview_rev'), intval( get_option( apply_filters('bucc_option', 'safecss_preview_rev') ) ) + 1 );
+			update_option( apply_filters('bucc_option', 'safecss_preview_add'), $add_to_existing );
 			wp_redirect( add_query_arg( 'csspreview', 'true', get_option( 'home' ) ) );
 
 			exit;
@@ -244,8 +249,8 @@ function bucc_init() {
 
 		// Save the CSS
 		bucc_save_revision( $css );
-		update_option( 'safecss_rev', intval( get_option( 'safecss_rev' ) ) + 1 );
-		update_option( 'safecss_add', $add_to_existing );
+		update_option( apply_filters('bucc_option', 'safecss_rev'), intval( get_option( apply_filters('bucc_option', 'safecss_rev') ) ) + 1 );
+		update_option( apply_filters('bucc_option', 'safecss_add'), $add_to_existing );
 
 		add_action( 'admin_notices', 'bucc_saved' );
 	}
@@ -335,7 +340,7 @@ function bucc_style() {
 	$href = add_query_arg( 'custom-css', 1,                                    $href );
 	$href = add_query_arg( 'csblog',     $blog_id,                             $href );
 	$href = add_query_arg( 'cscache',    5,                                    $href );
-	$href = add_query_arg( 'csrev',      (int) get_option( $option . '_rev' ), $href );
+	$href = add_query_arg( 'csrev',      (int) get_option( apply_filters('bucc_option', $option . '_rev') ), $href );
 ?>
 	<link rel="stylesheet" type="text/css" href="<?php echo esc_attr( $href ); ?>" />
 <?php
@@ -346,7 +351,7 @@ function bucc_style_filter( $current ) {
 		return $current;
 
 	if ( bucc_skip_stylesheet() )
-		return 'http://' . $_SERVER['HTTP_HOST'] . '/wp-content/plugins/safecss/blank.css';
+		return plugins_url('blank.css', __FILE__);
 
 	return $current;
 }
@@ -400,6 +405,8 @@ function bucc_menu() {
 	$hook   = add_submenu_page( $parent, $title, $title, 'switch_themes', 'editcss', 'bucc_admin' );
 	add_action( "admin_print_scripts-$hook", 'bucc_enqueue_scripts' );
 	add_action( "admin_print_styles-$hook", 'bucc_enqueue_styles' );
+	
+	do_action('bucc_menu', $parent);
 }
 
 function bucc_enqueue_scripts() {
@@ -431,6 +438,8 @@ function bucc_admin() {
  */
 function bucc_original_css_metabox( $safecss_post ) {
 	$stylesheet = get_bloginfo( 'stylesheet_directory' ) . '/style.css' . '?minify=false';
+	$stylesheet = apply_filters( 'bucc_current_stylesheet', $stylesheet );
+	
 	$theme = get_current_theme();
 	include('interface/original-css-metabox.php');
 }
@@ -505,7 +514,7 @@ function bucc_get_file($url = false, $projected = false) {
 
 
 /**
- * Saves the updated safecss a static file in uploads folder
+ * Saves the updated post as static file in uploads folder
  * 
  * @param int $post_id
  * @param object $post
@@ -513,7 +522,7 @@ function bucc_get_file($url = false, $projected = false) {
  */
 function bucc_save_to_file($post_id, $post) {
 	
-	if ( !$post or $post->post_type != 'safecss' or !trim($post->post_content) ) return;
+	if ( !$post or $post->post_type != BUCC_POST_TYPE or !trim($post->post_content) ) return;
 	if( defined('DOING_AUTOSAVE') and DOING_AUTOSAVE ) return;
 	
 	// save css to file
