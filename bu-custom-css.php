@@ -131,12 +131,17 @@ function bucc_save_revision( $css, $is_preview = false ) {
 		$post = array();
 		$post['post_content'] = $is_preview ? '' : $css;
 		$post['post_title']   = apply_filters('bucc_option', BUCC_POST_TYPE);
-		$post['post_name']   = apply_filters('bucc_option', BUCC_POST_TYPE);
+		$post['post_name']    = apply_filters('bucc_option', BUCC_POST_TYPE);
 		$post['post_status']  = 'publish';
 		$post['post_type']    = BUCC_POST_TYPE;
 
 		// Insert the CSS into wp_posts
 		$post_id = wp_insert_post( $post );
+		
+		// when first saving a post, custom.css is added to wp_head, so we must clear cache
+		if( function_exists('invalidate_blog_cache') ) {
+			invalidate_blog_cache();
+		}
 
 		do_action('post_bucc_save_revision_new', $safecss_post, $is_preview);
 		
@@ -242,7 +247,9 @@ function bucc_init() {
 			// Cache Buster
 			update_option( apply_filters('bucc_option', 'safecss_preview_rev'), intval( get_option( apply_filters('bucc_option', 'safecss_preview_rev') ) ) + 1 );
 			update_option( apply_filters('bucc_option', 'safecss_preview_add'), $add_to_existing );
-			wp_redirect( add_query_arg( 'csspreview', 'true', get_option( 'home' ) ) );
+			$link = add_query_arg( 'csspreview', 'true', get_option( 'home' ) );
+			$link = add_query_arg( 'preview', 'true', $link );
+			wp_redirect( $link );
 
 			exit;
 		}
@@ -250,7 +257,16 @@ function bucc_init() {
 		// Save the CSS
 		bucc_save_revision( $css );
 		update_option( apply_filters('bucc_option', 'safecss_rev'), intval( get_option( apply_filters('bucc_option', 'safecss_rev') ) ) + 1 );
-		update_option( apply_filters('bucc_option', 'safecss_add'), $add_to_existing );
+		
+		$add_to_existing_option = apply_filters('bucc_option', 'safecss_add');
+		if( get_option($add_to_existing_option) != $add_to_existing ) {
+			update_option( $add_to_existing_option, $add_to_existing );
+			
+			// since add_to_existing option changes all the site's template where style.css is used, we must reset cache
+			if( function_exists('invalidate_blog_cache') ) {
+				invalidate_blog_cache();
+			}
+		}
 
 		add_action( 'admin_notices', 'bucc_saved' );
 	}
@@ -367,6 +383,7 @@ function bucc_preview_links( $matches ) {
 		return $matches[0];
 
 	$link = add_query_arg( 'csspreview', 'true', $matches[2] );
+	$link = add_query_arg( 'preview', 'true', $link );
 	return "href={$matches[1]}$link{$matches[1]}";
 }
 
@@ -429,6 +446,7 @@ function bucc_saved() {
 function bucc_admin() {
 	global $screen_layout_columns;
 	$screen_layout_columns = 2;
+	$last_updated = bucc_process_file_updates();
 	include('interface/admin.php');
 }
 
@@ -522,7 +540,7 @@ function bucc_get_file($url = false, $projected = false) {
  */
 function bucc_save_to_file($post_id, $post) {
 	
-	if ( !$post or $post->post_type != BUCC_POST_TYPE or !trim($post->post_content) ) return;
+	if ( !$post or $post->post_type != BUCC_POST_TYPE ) return;
 	if( defined('DOING_AUTOSAVE') and DOING_AUTOSAVE ) return;
 	
 	// save css to file
@@ -561,12 +579,16 @@ add_action('save_post', 'bucc_save_to_file', 10, 2);
 function bucc_process_file_updates() {
 	
 	if ( $filepath = bucc_get_file() ) {
-		$safecss_post = bucc_get_post();
-		$mod_time = get_post_modified_time(get_option('date_format') . ' ' . get_option('time_format'), null, $safecss_post['ID']);
 		$newcss = file_get_contents($filepath);
-		if( $safecss_post and $safecss_post['post_content'] != $newcss ) {
+		if( $safecss_post = bucc_get_post() ) {
+			$mod_time = get_post_modified_time(get_option('date_format') . ' ' . get_option('time_format'), null, $safecss_post['ID']);
+			if( $safecss_post and $safecss_post['post_content'] != $newcss ) {
+				bucc_save_revision($newcss);
+				return $mod_time;
+			}
+		} else {
+			// this is the first import from custom.css, do it silently
 			bucc_save_revision($newcss);
-			return $mod_time;
 		}
 	}
 	return false;

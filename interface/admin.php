@@ -1,5 +1,5 @@
 <div class="wrap">
-	<h2><?php _e( 'CSS Stylesheet Editor', 'safecss' ); ?></h2>
+	<h2><?php bucc_is_mobile() ? _e( 'Mobile CSS Stylesheet Editor', 'safecss' ) : _e( 'CSS Stylesheet Editor', 'safecss' ); ?></h2>
 
 	<form id="safecssform" action="" method="post">
 	<div id="poststuff" class="metabox-holder <?php echo 2 == $screen_layout_columns ? ' has-right-sidebar' : ''; ?>">
@@ -16,7 +16,7 @@
 				</div>
 				<?php endif; ?>
 
-				<?php if( $last_updated = bucc_process_file_updates() ): ?>
+				<?php if( $last_updated ): ?>
 				<div class="error">
 					<p>
 						<strong>Your Custom CSS file has been modified outside of Wordpress!</strong>

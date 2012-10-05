@@ -2,7 +2,7 @@
 
 <p>
 	<label>
-		<input type="checkbox" name="add_to_existing" value="false" <?php checked(get_option( 'safecss_add'), 'no', true ); ?> />
+		<input type="checkbox" name="add_to_existing" value="false" <?php checked(get_option(apply_filters('bucc_option', 'safecss_add')), 'no', true ); ?> />
 		<?php _e( "Disable original CSS", 'safecss' ); ?><br />
 		<span class="description"><?php _e( "Do not load my theme's stylesheet, and load this custom CSS after.", 'safecss' ); ?></span>
 	</label>
