@@ -42,6 +42,13 @@ function bucc_load_plugin_textdomain() {
 	load_plugin_textdomain( 'safecss', false, 'bu-custom-css/languages' );
 }
 
+/**
+ * Redirect users to the Custom CSS Editor page from revisions page
+ * 
+ * @global type $post
+ * @param str $redirect
+ * @return string redirect url
+ */
 function bucc_revision_redirect( $redirect ) {
 	global $post;
 
@@ -56,10 +63,15 @@ function bucc_revision_redirect( $redirect ) {
 
 	return $redirect;
 }
-
-// Add BUCC_POST_TYPE to allowed post_type's for revision
 add_filter('revision_redirect', 'bucc_revision_redirect');
 
+/**
+ * Redirect users to the Custom CSS Editor page from post edit page
+ * 
+ * @global type $post
+ * @param str $redirect
+ * @return string redirect url
+ */
 function bucc_revision_post_link( $post_link ) {
 	global $post;
 
@@ -69,7 +81,6 @@ function bucc_revision_post_link( $post_link ) {
 
 	return $post_link;
 }
-
 // Override the edit link, the default link causes a redirect loop
 add_filter('get_edit_post_link', 'bucc_revision_post_link');
 
@@ -485,6 +496,8 @@ function bucc_revisions_metabox( $safecss_post ) {
 			unset( $args['numberposts'] );
 
 		wp_list_post_revisions( $safecss_post['ID'], $args );
+	} else {
+		echo "No revisions";
 	}
 }
 
