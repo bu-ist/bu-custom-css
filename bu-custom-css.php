@@ -249,6 +249,7 @@ function bucc_init() {
 			update_option( apply_filters('bucc_option', 'safecss_preview_add'), $add_to_existing );
 			$link = add_query_arg( 'csspreview', 'true', get_option( 'home' ) );
 			$link = add_query_arg( 'preview', 'true', $link );
+			$link = apply_filters( 'bucc_preview_link', $link );
 			wp_redirect( $link );
 
 			exit;

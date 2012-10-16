@@ -58,6 +58,22 @@ add_filter('bucc_redirect_url', 'bucc_mobile_redirect_url');
 
 
 /**
+ * If bu-mobile plugin enabled, use wantsMobile parameters
+ * Else, use as is.
+ * 
+ * @param string $url
+ * @return string preview url
+ */
+function bucc_mobile_preview_url($url) {
+	if( function_exists('bu_mobile_init') ) {
+		return add_query_arg( 'wantsMobile', bucc_is_mobile() ? 'true' : 'false', $url );
+	}
+	return $url;
+}
+add_filter('bucc_preview_link', 'bucc_mobile_preview_url');
+
+
+/**
  * When working with mobile, appends the parameter string with -mobile
  * 
  * @param type $option
