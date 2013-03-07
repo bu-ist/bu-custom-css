@@ -4,7 +4,7 @@ Plugin Name: BU Custom CSS Editor
 Description: Allows CSS editing with an option to override the original theme CSS.
 Author: Boston University (IS&T)
 Author URI: http://www.bu.edu/tech/
-Version: 1.0.1
+Version: 1.0.2
 */
 
 /**
@@ -337,7 +337,7 @@ function bucc_style() {
 	if ( !bucc_is_preview() ) {
 		// quickly handle actual css
 		if( $href = bucc_get_file(true) ) {
-			?><link rel="stylesheet" type="text/css" href="<?php echo esc_attr( $href ); ?>" /><?php
+			?><link rel="stylesheet" type="text/css" href="<?php echo esc_attr( $href . '?' . get_option( apply_filters('bucc_option', 'safecss_rev') ) ); ?>" /><?php
 			return true;
 		}
 		return false;

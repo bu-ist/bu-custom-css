@@ -3,7 +3,7 @@ Contributors: BostonU, inderpreet99
 Tags: custom, css
 Requires at least: 2.9
 Tested up to: 3.1
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
@@ -32,6 +32,13 @@ Other improvements include:
 == Screenshots ==
 
 == Changelog ==
+
+= 1.0.2 =
+* live cache busting added
+
+= 1.0.1 =
+* bu-mobile support: automatic switching on preview to mobile and non-mobile
+* add "no revisions" message, UI cleanup
 
 = 1.0 =
 * Fork Wordpress.com Custom CSS Plugin version 1.5
