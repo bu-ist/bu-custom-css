@@ -4,7 +4,7 @@ Plugin Name: BU Custom CSS Editor
 Description: Allows CSS editing with an option to override the original theme CSS.
 Author: Boston University (IS&T)
 Author URI: http://www.bu.edu/tech/
-Version: 1.0.2
+Version: 1.0.3
 */
 
 /**
@@ -111,7 +111,7 @@ function bucc_get_current_revision() {
 		return false;
 
 	if ( !empty( $safecss_post['ID'] ) )
-		$revisions = wp_get_post_revisions( $safecss_post['ID'], 'orderby=ID&order=DESC&limit=1' );
+		$revisions = wp_get_post_revisions( $safecss_post['ID'], array( 'posts_per_page' => 1, 'orderby' => 'date', 'order' => 'DESC' ) );
 
 	// Empty array if no revisions exist so return
 	if ( empty( $revisions ) ) {
@@ -148,11 +148,6 @@ function bucc_save_revision( $css, $is_preview = false ) {
 
 		// Insert the CSS into wp_posts
 		$post_id = wp_insert_post( $post );
-		
-		// when first saving a post, custom.css is added to wp_head, so we must clear cache
-		if( function_exists('invalidate_blog_cache') ) {
-			invalidate_blog_cache();
-		}
 
 		do_action('post_bucc_save_revision_new', $safecss_post, $is_preview);
 		
@@ -273,11 +268,6 @@ function bucc_init() {
 		$add_to_existing_option = apply_filters('bucc_option', 'safecss_add');
 		if( get_option($add_to_existing_option) != $add_to_existing ) {
 			update_option( $add_to_existing_option, $add_to_existing );
-			
-			// since add_to_existing option changes all the site's template where style.css is used, we must reset cache
-			if( function_exists('invalidate_blog_cache') ) {
-				invalidate_blog_cache();
-			}
 		}
 
 		add_action( 'admin_notices', 'bucc_saved' );
@@ -467,10 +457,8 @@ function bucc_admin() {
  * @param type $safecss_post
  */
 function bucc_original_css_metabox( $safecss_post ) {
-	$stylesheet = get_bloginfo( 'stylesheet_directory' ) . '/style.css' . '?minify=false';
+	$stylesheet = get_stylesheet_uri() . '?minify=false';
 	$stylesheet = apply_filters( 'bucc_current_stylesheet', $stylesheet );
-	
-	$theme = get_current_theme();
 	include('interface/original-css-metabox.php');
 }
 
@@ -487,18 +475,54 @@ function bucc_submit_metabox( $safecss_post ) {
  * @param post-assoc-array $safecss_post
  */
 function bucc_revisions_metabox( $safecss_post ) {
-	
-	if ( 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) ) {
-		// Specify numberposts and ordering args
-		$args = array( 'numberposts' => 5, 'orderby' => 'ID', 'order' => 'DESC' );
-		// Remove numberposts from args if show_all_rev is specified
-		if ( isset( $_GET['show_all_rev'] ) )
-			unset( $args['numberposts'] );
+	if ( function_exists( 'wp_revisions_to_keep' ) )
+		$max_revisions = wp_revisions_to_keep( $safecss_post );
+	else
+		$max_revisions = defined( 'WP_POST_REVISIONS' ) && is_numeric( WP_POST_REVISIONS ) ? (int) WP_POST_REVISIONS : 25;
 
-		wp_list_post_revisions( $safecss_post['ID'], $args );
-	} else {
-		echo "No revisions";
+	$posts_per_page = isset( $_GET['show_all_rev'] ) ? $max_revisions : 6;
+
+	$revisions = new WP_Query( array(
+		'posts_per_page' => $posts_per_page,
+		'post_type' => 'revision',
+		'post_status' => 'inherit',
+		'post_parent' => $safecss_post['ID'],
+		'orderby' => 'date',
+		'order' => 'DESC'
+	) );
+
+	if ( $revisions->have_posts() ) { ?>
+		<ul class="post-revisions"><?php
+
+		global $post;
+
+		while ( $revisions->have_posts() ) :
+			$revisions->the_post();
+
+			?><li>
+				<?php
+					echo wp_post_revision_title( $post );
+
+					if ( ! empty( $post->post_author ) )
+						echo ' by ' . get_the_author_meta( 'display_name', $post->post_author );
+
+					if ( ! empty( $post->post_excerpt ) )
+						echo ' (' . esc_html( $post->post_excerpt ) . ')';
+				?>
+			</li><?php
+
+		endwhile;
+
+		?></ul><?php
+
+		if ( $revisions->found_posts > 6 ) {
+			?>
+			<a href="<?php echo add_query_arg( 'show_all_rev', 'true', menu_page_url( 'editcss', false ) ); ?>"><?php esc_html_e( 'Show more', 'jetpack' ); ?></a>
+			<?php
+		}
 	}
+
+	wp_reset_query();
 }
 
 function bucc_metabox_original_css() {

@@ -5,6 +5,9 @@
 .wrap textarea#safecss {
 	width: 100%;
 	height: 350px;
+	font-family: "Lucida Grande",Verdana,Arial,"Bitstream Vera Sans",sans-serif;
+	font-size: 13px;
+	line-height:1.4em;
 }
 
 #minor-publishing {

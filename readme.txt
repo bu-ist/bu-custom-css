@@ -1,9 +1,9 @@
-=== Plugin Name ===
+=== BU Custom CSS ===
 Contributors: BostonU, inderpreet99
 Tags: custom, css
 Requires at least: 2.9
-Tested up to: 3.1
-Stable tag: 1.0.2
+Tested up to: 3.6.1
+Stable tag: 1.0.3
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
@@ -27,11 +27,11 @@ Other improvements include:
 1. Activate the plugin through the 'Plugins' menu in WordPress
 1. Access Custom CSS under Site Design in the WP Admin sidebar.
 
-== Frequently Asked Questions ==
-
-== Screenshots ==
-
 == Changelog ==
+
+= 1.0.3 =
+* fix deprecated revisions functions for WP 3.6 support (backport from jetpack)
+* textarea styling for WP 3.6
 
 = 1.0.2 =
 * live cache busting added
