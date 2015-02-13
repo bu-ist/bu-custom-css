@@ -456,6 +456,15 @@ class Jetpack_Custom_CSS {
 	}
 
 	/**
+	 * Get $content_width, but with a <s>twist</s> filter.
+	 * Imported function from class.jetpack.php
+	 */
+	public static function get_content_width() {
+		$content_width = isset( $GLOBALS['content_width'] ) ? $GLOBALS['content_width'] : false;
+		return apply_filters( 'jetpack_content_width', $content_width );
+	}
+
+	/**
 	 * Currently this filter function gets called on 
 	 * 'template_redirect' action and
 	 * 'admin_init' action
@@ -466,7 +475,7 @@ class Jetpack_Custom_CSS {
 			return;
 		}
 
-		$GLOBALS['content_width'] = Jetpack::get_content_width();
+		$GLOBALS['content_width'] = Jetpack_Custom_CSS::get_content_width();
 	}
 
 	/*
@@ -1275,7 +1284,7 @@ class Jetpack_Custom_CSS {
 		list( $width, $height ) = $dims;
 
 		if ( 'large' == $size && 'edit' == $context )
-			$width = Jetpack::get_content_width();
+			$width = Jetpack_Custom_CSS::get_content_width();
 
 		return array( $width, $height );
 	}
