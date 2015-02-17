@@ -977,6 +977,31 @@ class Jetpack_Custom_CSS {
 				do_action( 'custom_css_submitbox_misc_actions' ); 
 				
 				?>
+
+				<div class="misc-pub-section validate">
+					To check for errors, you can <a href="http://jigsaw.w3.org/css-validator/<?php if($css_url = self::get_file(true)): ?>validator?uri=<?php echo $css_url; ?><?php endif; ?>" target="_blank">validate your CSS</a> using W3C's free CSS Validation Service.
+				</div>
+
+				<script type="text/javascript">
+					jQuery( function ( $ ) {
+						// Only show the .validate div when not using a preprocessor
+						var preprocessor = <?php echo isset( $selected_preprocessor_key ) ? json_encode( $selected_preprocessor_key ) : ''; ?>;
+						if( preprocessor != '' ) {
+							$('#minor-publishing .validate').addClass('hidden');
+						}
+
+						$( '.save-preprocessor' ).on('click', function ( e ) {
+							$( "#preprocessor_choices option:selected" ).each(function() {
+								if ( $(this).val() == '') {
+									$('#minor-publishing .validate').removeClass('hidden');
+								} else {
+									$('#minor-publishing .validate').addClass('hidden');
+								}
+							})
+						} );
+					} );
+				</script>
+
 			</div>
 		</div>
 		<div id="major-publishing-actions">
