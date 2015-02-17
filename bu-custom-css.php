@@ -27,6 +27,8 @@ Version: 1.0.3
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+define('BUCC_POST_TYPE', 'bucc');
+
 class Jetpack_Custom_CSS {
 	static function init() {
 		add_action( 'switch_theme', array( __CLASS__, 'reset' ) );
@@ -49,7 +51,7 @@ class Jetpack_Custom_CSS {
 
 	  	// Register safecss as a custom post_type
 	  	// Explicit capability definitions are largely unnecessary because the posts are manipulated in code via an options page, managing CSS revisions does check the capabilities, so let's ensure that the proper caps are checked.
-	  	register_post_type( 'safecss', array(
+	  	register_post_type( self::get_post_type_name(), array(
 	//		These are the defaults
 	//		'exclude_from_search' => true,
 	//		'public' => false,
@@ -115,7 +117,7 @@ class Jetpack_Custom_CSS {
 			) );
 
 			if ( $_POST['action'] == 'preview' ) {
-				wp_safe_redirect( add_query_arg( 'csspreview', 'true', get_option( 'home' ) ) );
+				wp_safe_redirect( apply_filters( 'bucc_preview_link', add_query_arg( 'csspreview', 'true', get_option( 'home' ) ) ) );
 				exit;
 			}
 
@@ -251,14 +253,14 @@ class Jetpack_Custom_CSS {
 			$safecss_revision_id = Jetpack_Custom_CSS::save_revision( $css, true, $args['preprocessor'] );
 
 			// Cache Buster
-			update_option( 'safecss_preview_rev', intval( get_option( 'safecss_preview_rev' ) ) + 1);
+			update_option( self::get_option_name( 'safecss_preview_rev'), intval( get_option( self::get_option_name( 'safecss_preview_rev' ) ) ) + 1);
 
 			update_metadata( 'post', $safecss_revision_id, 'custom_css_add', $add_to_existing );
 			update_metadata( 'post', $safecss_revision_id, 'content_width', $args['content_width'] );
 			update_metadata( 'post', $safecss_revision_id, 'custom_css_preprocessor', $args['preprocessor'] );
 
-			delete_option( 'safecss_add' );
-			delete_option( 'safecss_content_width' );
+			delete_option( self::get_option_name( 'safecss_add' ) );
+			delete_option( self::get_option_name( 'safecss_content_width' ) );
 
 			if ( $args['is_preview'] ) {
 				return $safecss_revision_id;
@@ -277,20 +279,20 @@ class Jetpack_Custom_CSS {
 
 		$safecss_post_revision = Jetpack_Custom_CSS::get_current_revision();
 
-		update_option( 'safecss_rev', intval( get_option( 'safecss_rev' ) ) + 1 );
+		update_option( self::get_option_name( 'safecss_rev' ), intval( get_option( 'safecss_rev' ) ) + 1 );
 
 		update_post_meta( $safecss_post_id, 'custom_css_add', $add_to_existing );
 		update_post_meta( $safecss_post_id, 'content_width', $args['content_width'] );
 		update_post_meta( $safecss_post_id, 'custom_css_preprocessor', $args['preprocessor'] );
 
-		delete_option( 'safecss_add' );
-		delete_option( 'safecss_content_width' );
+		delete_option( self::get_option_name( 'safecss_add' ) );
+		delete_option( self::get_option_name( 'safecss_content_width' ) );
 
 		update_metadata( 'post', $safecss_post_revision['ID'], 'custom_css_add', $add_to_existing );
 		update_metadata( 'post', $safecss_post_revision['ID'], 'content_width', $args['content_width'] );
 		update_metadata( 'post', $safecss_post_revision['ID'], 'custom_css_preprocessor', $args['preprocessor'] );
 
-		delete_option( 'safecss_preview_add' );
+		delete_option( self::get_option_name( 'safecss_preview_add' ) );
 
 		return $safecss_post_id;
 	}
@@ -315,12 +317,14 @@ class Jetpack_Custom_CSS {
 	 * @return int|bool The post ID if it exists; false otherwise.
 	 */
 	static function post_id() {
-		$custom_css_post_id = wp_cache_get( 'custom_css_post_id' );
+		$custom_css_post_id = wp_cache_get( self::get_option_name( 'custom_css_post_id' ) );
 
 		if ( false === $custom_css_post_id ) {
+			$slug = self::get_option_name( self::get_post_type_name());
 			$custom_css_posts = get_posts( array(
+				'name' => $slug,
 				'posts_per_page' => 1,
-				'post_type' => 'safecss',
+				'post_type' => self::get_post_type_name(),
 				'post_status' => 'publish',
 				'orderby' => 'date',
 				'order' => 'DESC'
@@ -332,7 +336,7 @@ class Jetpack_Custom_CSS {
 				$custom_css_post_id = 0;
 
 			// Save post_id=0 to note that no safecss post exists.
-			wp_cache_set( 'custom_css_post_id', $custom_css_post_id );
+			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $custom_css_post_id );
 		}
 
 		if ( ! $custom_css_post_id )
@@ -387,9 +391,10 @@ class Jetpack_Custom_CSS {
 
 			$post = array();
 			$post['post_content'] = $css;
-			$post['post_title'] = 'safecss';
+			$post['post_title'] = self::get_option_name( self::get_post_type_name());
+			$post['post_name'] = self::get_option_name( self::get_post_type_name());
 			$post['post_status'] = 'publish';
-			$post['post_type'] = 'safecss';
+			$post['post_type'] = self::get_post_type_name();
 			$post['post_content_filtered'] = $compressed_css;
 
 			// Set excerpt to current theme, for display in revisions list
@@ -403,7 +408,7 @@ class Jetpack_Custom_CSS {
 
 			// Insert the CSS into wp_posts
 			$post_id = wp_insert_post( $post );
-			wp_cache_set( 'custom_css_post_id', $post_id );
+			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $post_id );
 			return $post_id;
 		}
 
@@ -429,7 +434,7 @@ class Jetpack_Custom_CSS {
 		// Do not update post if we are only saving a preview
 		if ( false === $is_preview ) {
 			$post_id = wp_update_post( $safecss_post );
-			wp_cache_set( 'custom_css_post_id', $post_id );
+			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $post_id );
 			return $post_id;
 		}
 		else if ( ! defined( 'DOING_MIGRATE' ) ) {
@@ -451,7 +456,7 @@ class Jetpack_Custom_CSS {
 				if ( $safecss_post )
 					return (bool) ( get_post_meta( $safecss_post['ID'], 'custom_css_add', true ) == 'no' );
 				else
-					return (bool) ( get_option( 'safecss_preview_add' ) == 'no' );
+					return (bool) ( get_option( self::get_option_name( 'safecss_preview_add' ) ) == 'no' );
 			}
 			else {
 				$custom_css_post_id = Jetpack_Custom_CSS::post_id();
@@ -466,7 +471,7 @@ class Jetpack_Custom_CSS {
 						return (bool) ( $custom_css_add === 'no' );
 				}
 
-				return (bool) ( get_option( 'safecss_add' ) == 'no' );
+				return (bool) ( get_option( self::get_option_name( 'safecss_add' ) ) == 'no' );
 			}
 		}
 	}
@@ -491,7 +496,7 @@ class Jetpack_Custom_CSS {
 	 */
 	static function set_content_width(){
 		// Don't apply this filter on the Edit CSS page
-		if ( isset( $_GET ) && isset( $_GET['page'] ) &&  'editcss' == $_GET['page'] && is_admin() ) {
+		if ( isset( $_GET ) && isset( $_GET['page'] ) &&  self::get_option_name( 'editcss' ) == $_GET['page'] && is_admin() ) {
 			return;
 		}
 
@@ -636,7 +641,7 @@ class Jetpack_Custom_CSS {
 		$href = add_query_arg( 'custom-css', 1, $href );
 		$href = add_query_arg( 'csblog', $blog_id, $href );
 		$href = add_query_arg( 'cscache', 6, $href );
-		$href = add_query_arg( 'csrev', (int) get_option( $option . '_rev' ), $href );
+		$href = add_query_arg( 'csrev', (int) get_option( self::get_option_name( $option . '_rev' ) ), $href );
 
 		$href = apply_filters( 'safecss_href', $href, $blog_id );
 
@@ -721,6 +726,8 @@ class Jetpack_Custom_CSS {
 
 		add_action( "load-revision.php", array( 'Jetpack_Custom_CSS', 'prettify_post_revisions' ) );
 		add_action( "load-$hook", array( 'Jetpack_Custom_CSS', 'update_title' ) );
+	
+		do_action('bucc_menu', $parent);
 	}
 
 	/**
@@ -745,7 +752,7 @@ class Jetpack_Custom_CSS {
 			return $title;
 		}
 
-		if ( 'safecss' != $post->post_type ) {
+		if ( self::get_post_type_name() != $post->post_type ) {
 			return $title;
 		}
 
@@ -753,7 +760,7 @@ class Jetpack_Custom_CSS {
 	}
 
 	static function enqueue_scripts( $hook ) {
-		if ( 'appearance_page_editcss' != $hook )
+		if ( self::get_option_name( 'appearance_page_editcss' ) != $hook )
 			return;
 
 		wp_enqueue_script( 'postbox' );
@@ -1126,6 +1133,8 @@ class Jetpack_Custom_CSS {
 	 * themes is a sure-fire way to get a clean start.
 	 */
 	static function reset() {
+		/* TODO: Handle Mobile CSS */
+
 		$safecss_post_id = Jetpack_Custom_CSS::save_revision( '' );
 		$safecss_revision = Jetpack_Custom_CSS::get_current_revision();
 
@@ -1188,7 +1197,7 @@ class Jetpack_Custom_CSS {
 	static function restore_revision( $_post_id, $_revision_id ) {
 		$_post = get_post( $_post_id );
 
-		if ( 'safecss' != $_post->post_type )
+		if ( self::get_post_type_name() != $_post->post_type )
 			return;
 
 		$safecss_revision = Jetpack_Custom_CSS::get_current_revision();
@@ -1201,8 +1210,8 @@ class Jetpack_Custom_CSS {
 		update_metadata( 'post', $safecss_revision['ID'], 'custom_css_add', $custom_css_add );
 		update_metadata( 'post', $safecss_revision['ID'], 'custom_css_preprocessor', $preprocessor );
 
-		delete_option( 'safecss_add' );
-		delete_option( 'safecss_content_width' );
+		delete_option( self::get_option_name( 'safecss_add' ) );
+		delete_option( self::get_option_name( 'safecss_content_width' ) );
 
 		update_post_meta( $_post->ID, 'content_width', $content_width );
 		update_post_meta( $_post->ID, 'custom_css_add', $custom_css_add );
@@ -1298,9 +1307,9 @@ class Jetpack_Custom_CSS {
 	static function revision_redirect( $redirect ) {
 		global $post;
 
-		if ( 'safecss' == $post->post_type ) {
+		if ( self::get_post_type_name() == $post->post_type ) {
 			if ( strstr( $redirect, 'action=edit' ) ) {
-				return 'themes.php?page=editcss';
+				return apply_filters( 'bucc_redirect_url', 'themes.php?page=editcss' );
 			}
 
 			if ( 'edit.php' == $redirect ) {
@@ -1320,11 +1329,11 @@ class Jetpack_Custom_CSS {
 			return $post_link;
 		}
 
-		if ( 'safecss' != $post->post_type ) {
+		if ( self::get_post_type_name() != $post->post_type ) {
 			return $post_link;
 		}
 
-		$post_link = admin_url( 'themes.php?page=editcss' );
+		$post_link = apply_filters('bucc_redirect_url', admin_url( 'themes.php?page=editcss' ) );
 
 		if ( 'display' == $context ) {
 			return esc_url( $post_link );
@@ -1365,6 +1374,26 @@ class Jetpack_Custom_CSS {
 			$content_width = $custom_content_width;
 
 		return $content_width;
+	}
+
+	/* BU Customization functions */
+
+	/**
+	 * Allow filters to change option names dynamically
+	 * Useful for BU Mobile integration
+	 * @param  string $option_name original
+	 * @return string              modified
+	 */
+	static function get_option_name( $option_name ) {
+		return apply_filters( 'bucc_option', $option_name );
+	}
+
+	/**
+	 * Get Post Type's name
+	 * @return string
+	 */
+	static function get_post_type_name() {
+		return BUCC_POST_TYPE;
 	}
 }
 
@@ -1655,3 +1684,5 @@ add_action( 'init', array( 'Jetpack_Custom_CSS', 'init' ) );
 
 include dirname( __FILE__ ) . '/custom-css/preprocessors.php';
 include dirname( __FILE__ ) . '/includes/class.jetpack-user-agent.php';
+include dirname( __FILE__ ) . '/includes/bu-mobile-support.php';
+
