@@ -126,10 +126,11 @@ function bucc_mobile_stylesheet() {
  */
 function bucc_mobile_menu($parent) {
 	if( /* current_theme_supports('bu-custom-css-mobile') and */ function_exists('bu_mobile_init') ) {
-		$title  = __( 'Custom Mobile CSS', 'safecss' );
-		$hook = add_submenu_page( $parent, $title, $title, 'switch_themes', 'editcss-mobile', 'bucc_admin' );
-		add_action( "admin_print_scripts-$hook", 'bucc_enqueue_scripts' );
-		add_action( "admin_print_styles-$hook", 'bucc_enqueue_styles' );
+		$title = __( 'Custom Mobile CSS', 'jetpack' );
+		$hook = add_theme_page( $title, $title, 'edit_theme_options', 'editcss-mobile', array( 'Jetpack_Custom_CSS', 'admin' ) );
+
+		add_action( "load-revision.php", array( 'Jetpack_Custom_CSS', 'prettify_post_revisions' ) );
+		add_action( "load-$hook", array( 'Jetpack_Custom_CSS', 'update_title' ) );
 	}
 }
 add_action('bucc_menu', 'bucc_mobile_menu');
