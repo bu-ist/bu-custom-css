@@ -7,6 +7,26 @@ Author URI: http://www.bu.edu/tech/
 Version: 1.0.3
 */
 
+/**
+ * 
+ * Copyright Automattic
+ * Copyright Boston University
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
 class Jetpack_Custom_CSS {
 	static function init() {
 		add_action( 'switch_theme', array( __CLASS__, 'reset' ) );
@@ -668,16 +688,15 @@ class Jetpack_Custom_CSS {
 		if ( is_admin() )
 			return;
 
-		$message = esc_html__( 'Preview: changes must be saved or they will be lost', 'jetpack' );
+		$message = '<strong>' . esc_js( __( 'You are previewing custom CSS.') ) . '</strong> ' . esc_js( __( 'Don\'t forget to save any changes, or they will be lost.', 'safecss' ) );
 		$message = apply_filters( 'safecss_preview_message', $message );
 
 		$preview_flag_js = "var flag = document.createElement('div');
 		flag.innerHTML = " . json_encode( $message ) . ";
-		flag.style.background = '#FF6600';
-		flag.style.color = 'white';
-		flag.style.textAlign = 'center';
-		flag.style.fontSize = '15px';
-		flag.style.padding = '2px';
+		flag.style.background = '#fefacb';
+		flag.style.color = 'black';
+		flag.style.fontSize = '13px';
+		flag.style.padding = '10px';
 		flag.style.fontFamily = 'sans-serif'; 
 		document.body.style.paddingTop = '0px';
 		document.body.insertBefore(flag, document.body.childNodes[0]);
@@ -697,7 +716,7 @@ class Jetpack_Custom_CSS {
 
 	static function menu() {
 		$parent = 'themes.php';
-		$title = __( 'Edit CSS', 'jetpack' );
+		$title = __( 'Custom CSS', 'jetpack' );
 		$hook = add_theme_page( $title, $title, 'edit_theme_options', 'editcss', array( 'Jetpack_Custom_CSS', 'admin' ) );
 
 		add_action( "load-revision.php", array( 'Jetpack_Custom_CSS', 'prettify_post_revisions' ) );
@@ -776,6 +795,19 @@ class Jetpack_Custom_CSS {
 			
 			?>
 			<h2><?php _e( 'CSS Stylesheet Editor', 'jetpack' ); ?></h2>
+
+			<?php if( defined('BU_CMS') and BU_CMS ): ?>
+			<div class="error">
+				<p>
+					<strong>Important:</strong>
+					Adding custom CSS to your theme can have a negative effect on the appearance of your pages.
+					The IS&amp;T Help Desk does not support custom styles created using this tool.
+					By using this tool, you agree to take full responsibility for the appearance of your website,
+					and that your website will remain in compliance with the <a href="http://www.bu.edu/brand/websites/" target="_blank">University branding guidelines</a>.
+				</p>
+			</div>
+			<?php endif; ?>
+
 			<form id="safecssform" action="" method="post">
 				<?php wp_nonce_field( 'safecss' ) ?>
 				<?php wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false ); ?>
