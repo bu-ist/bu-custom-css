@@ -782,7 +782,7 @@ class Jetpack_Custom_CSS {
 
 	static function admin() {
 		add_meta_box( 'submitdiv', __( 'Publish', 'jetpack' ), array( __CLASS__, 'publish_box' ), 'editcss', 'side' );
-		add_action( 'custom_css_submitbox_misc_actions', array( __CLASS__, 'content_width_settings' ) );
+		// add_action( 'custom_css_submitbox_misc_actions', array( __CLASS__, 'content_width_settings' ) );
 
 		$safecss_post = Jetpack_Custom_CSS::get_post();
 
