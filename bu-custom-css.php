@@ -27,6 +27,11 @@ Version: 1.0.3
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+// if ( function_exists( 'safecss' ) || ( class_exists( 'Jetpack' ) && Jetpack::is_module_active( 'custom-css' ) ) ) {
+	// wp_die( 'You have the Wordpress.com Custom CSS plugin activated. Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.' );
+// }
+
+define('BUCC_FILENAME', 'custom.css');
 define('BUCC_POST_TYPE', 'bucc');
 
 class Jetpack_Custom_CSS {
@@ -99,6 +104,8 @@ class Jetpack_Custom_CSS {
 
 		add_filter( 'jetpack_content_width', array( 'Jetpack_Custom_CSS', 'jetpack_content_width' ) );
 		add_filter( 'editor_max_image_size', array( 'Jetpack_Custom_CSS', 'editor_max_image_size' ), 10, 3 );
+
+		add_action('save_post', array( 'Jetpack_Custom_CSS', 'save_to_file' ), 10, 3);
 
 		if ( !current_user_can( 'switch_themes' ) && !is_super_admin() )
 			return;
@@ -553,6 +560,11 @@ class Jetpack_Custom_CSS {
 
 		$css = str_replace( array( '\\\00BB \\\0020', '\0BB \020', '0BB 020' ), '\00BB \0020', $css );
 
+
+		if ( empty($css) and $safecss_file = self::get_file() ) {
+			$css = file_get_contents($safecss_file);
+		}
+
 		if ( empty( $css ) ) {
 			$css = "/*\n"
 				. wordwrap(
@@ -600,28 +612,24 @@ class Jetpack_Custom_CSS {
 		$css    = '';
 		$option = Jetpack_Custom_CSS::is_preview() ? 'safecss_preview' : 'safecss';
 
+
+	
+		// shortcircuit: if not preview, output the stylesheet tag
 		if ( 'safecss' == $option ) {
-			if ( get_option( 'safecss_revision_migrated' ) ) {
-				$safecss_post = Jetpack_Custom_CSS::get_post();
+			if( $href = self::get_file(true) ) {
+				?><link rel="stylesheet" id="custom-css-css"  type="text/css" href="<?php echo esc_attr( $href . '?' . get_option( self::get_option_name( 'safecss_rev') ) ); ?>" /><?php
 
-				if ( ! empty( $safecss_post['post_content'] ) ) {
-					$css = $safecss_post['post_content'];
-				}
-			} else {
-				$current_revision = Jetpack_Custom_CSS::get_current_revision();
-
-				if ( ! empty( $current_revision['post_content'] ) ) {
-					$css = $current_revision['post_content'];
-				}
+				/**
+				 * Fires after creating the <link> in the <head> element
+				 * for the custom css stylesheet
+				 *
+				 * @since ?
+				 * @module Custom_CSS
+				 **/
+				do_action( 'safecss_link_tag_post' );
+				return true;
 			}
-
-			// Fix for un-migrated Custom CSS
-			if ( empty( $safecss_post ) ) {
-				$_css = get_option( 'safecss' );
-				if ( !empty( $_css ) ) {
-					$css = $_css;
-				}
-			}
+			return false;
 		}
 
 		if ( 'safecss_preview' == $option ) {
@@ -785,6 +793,7 @@ class Jetpack_Custom_CSS {
 		// add_action( 'custom_css_submitbox_misc_actions', array( __CLASS__, 'content_width_settings' ) );
 
 		$safecss_post = Jetpack_Custom_CSS::get_post();
+		$last_updated = self::process_file_updates();
 
 		if ( ! empty( $safecss_post ) && 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) )
 			add_meta_box( 'revisionsdiv', __( 'CSS Revisions', 'jetpack' ), array( __CLASS__, 'revisions_meta_box' ), 'editcss', 'side' );
@@ -802,6 +811,15 @@ class Jetpack_Custom_CSS {
 			
 			?>
 			<h2><?php _e( 'CSS Stylesheet Editor', 'jetpack' ); ?></h2>
+
+			<?php if( $last_updated ): ?>
+			<div class="error">
+				<p>
+					<strong>Your Custom CSS file has been modified outside of Wordpress!</strong>
+					We have refreshed the editor below to show the new CSS. The previous version, updated on <?php echo $last_updated; ?>, has been saved as a revision.
+				</p>
+			</div>
+			<?php endif; ?>
 
 			<?php if( defined('BU_CMS') and BU_CMS ): ?>
 			<div class="error">
@@ -1394,6 +1412,97 @@ class Jetpack_Custom_CSS {
 	 */
 	static function get_post_type_name() {
 		return BUCC_POST_TYPE;
+	}
+
+	/**
+	 * Get the file (path or url) to custom css file
+	 * 
+	 * @param boolean $url true to get frontend URL, false (default) to get absolute path
+	 * @param boolean $projected true if file existence doesn't matter, false (default) if it does
+	 * @return boolean|string if the custom css file is found, returns it or false
+	 */
+	static function get_file( $url = false, $projected = false ) {
+		
+		$filename = self::get_filename();
+		$filepath = ABSPATH . get_option( 'upload_path' ) . '/' . $filename;
+		$siteurl = get_option( 'siteurl' );
+		if ( file_exists( $filepath ) || $projected ) {
+			if ( $url ) {
+				return $siteurl . '/files/' . $filename;
+			} else {
+				return $filepath;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Get the filename for custom css file
+	 * 
+	 * @return string
+	 */
+	static function get_filename() {
+		$filename = BUCC_FILENAME;
+		return apply_filters( 'bucc_filename', $filename );
+	}
+
+	/**
+	 * Pick up any updates in the custom css file (i.e. updates happening outside wordpress, like through ftp/ssh)
+	 * 
+	 * @return last-mod-time|false non-false response indicates that newer content was retrieved from custom css file
+	 */
+	static function process_file_updates() {
+		
+		if ( $filepath = self::get_file() ) {
+			$newcss = file_get_contents( $filepath );
+			if ( $safecss_post = self::get_post() ) {
+				$mod_time = get_post_modified_time( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), null, $safecss_post['ID'] );
+				if ( $safecss_post && $safecss_post['post_content'] != $newcss ) {
+					self::save_revision( $newcss );
+					return $mod_time;
+				}
+			} else {
+				// this is the first import from custom.css, do it silently
+				self::save_revision( $newcss );
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Saves the updated css post as static file in media directory
+	 * 
+	 * @param int $post_id
+	 * @param object $post
+	 * @return boolean true if file saved, false otherwise
+	 */
+	static function save_to_file( $post_id, $post, $update ) {
+		if ( !$post || $post->post_type != self::get_post_type_name() ) return;
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+
+		// save css to file
+		$file = self::get_file( false, true );
+		$dir = dirname( $file );
+		if ( is_dir( $dir ) && is_writable( $dir ) ) {
+			$temp_file = tempnam( '/tmp', BUCC_FILENAME );
+
+			if ( $temp_file ) {
+				$f = @fopen( $temp_file, 'w' );
+
+				if ( $f ) {
+					fwrite( $f, $post->post_content );
+					fclose( $f );
+
+					@rename( $temp_file, $file ); // atomic on unix
+					@chmod( $file, 0664 );
+				}
+			}
+			return true;
+		} else {
+			error_log( "Could not update the custom CSS file. Directory ($dir) is not writable." );
+		}
+		
+		return false;
 	}
 }
 
