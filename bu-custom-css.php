@@ -701,7 +701,7 @@ class Jetpack_Custom_CSS {
 		if ( is_admin() )
 			return;
 
-		$message = '<strong>' . esc_js( __( 'You are previewing custom CSS.') ) . '</strong> ' . esc_js( __( 'Don\'t forget to save any changes, or they will be lost.', 'safecss' ) );
+		$message = '<strong>' . esc_html__( 'You are previewing custom CSS.', 'jetpack' ) . '</strong> ' . esc_html__( 'Don\'t forget to save any changes, or they will be lost.', 'jetpack' );
 		$message = apply_filters( 'safecss_preview_message', $message );
 
 		$preview_flag_js = "var flag = document.createElement('div');
