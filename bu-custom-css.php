@@ -27,6 +27,7 @@ Version: 1.0.3
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+// @todo: Detect Jetpack and avoid fatals
 // if ( function_exists( 'safecss' ) || ( class_exists( 'Jetpack' ) && Jetpack::is_module_active( 'custom-css' ) ) ) {
 	// wp_die( 'You have the Wordpress.com Custom CSS plugin activated. Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.' );
 // }
@@ -812,7 +813,7 @@ class Jetpack_Custom_CSS {
 			?>
 			<h2><?php _e( 'CSS Stylesheet Editor', 'jetpack' ); ?></h2>
 
-			<?php if( $last_updated ): ?>
+			<?php if ( $last_updated ): ?>
 			<div class="error">
 				<p>
 					<strong>Your Custom CSS file has been modified outside of Wordpress!</strong>
@@ -821,12 +822,13 @@ class Jetpack_Custom_CSS {
 			</div>
 			<?php endif; ?>
 
-			<?php if( defined('BU_CMS') and BU_CMS ): ?>
+			<?php if ( defined( 'BU_CMS' ) and BU_CMS ): ?>
 			<div class="error">
 				<p>
 					<strong>Important:</strong>
 					Adding custom CSS to your theme can have a negative effect on the appearance of your pages.
 					The IS&amp;T Help Desk does not support custom styles created using this tool.
+					If you are new to CSS, start with a <a href="http://www.htmldog.com/guides/cssbeginner/" target="_blank">beginner tutorial</a>.
 					By using this tool, you agree to take full responsibility for the appearance of your website,
 					and that your website will remain in compliance with the <a href="http://www.bu.edu/brand/websites/" target="_blank">University branding guidelines</a>.
 				</p>
@@ -839,8 +841,10 @@ class Jetpack_Custom_CSS {
 				<?php wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false ); ?>
 				<input type="hidden" name="action" value="save" />
 				<div id="poststuff">
+					<?php if ( ! defined( 'BU_CMS' ) ): ?>
 					<p class="css-support"><?php echo apply_filters( 'safecss_intro_text', __( 'New to CSS? Start with a <a href="http://www.htmldog.com/guides/cssbeginner/">beginner tutorial</a>. Questions?
 		Ask in the <a href="http://wordpress.org/support/forum/themes-and-templates">Themes and Templates forum</a>.', 'jetpack' ) ); ?></p>
+					<?php endif; ?>
 					
 					<div id="post-body" class="metabox-holder columns-2">
 						<div id="post-body-content">
@@ -1036,7 +1040,7 @@ class Jetpack_Custom_CSS {
 				?>
 
 				<div class="misc-pub-section validate">
-					To check for errors, you can <a href="http://jigsaw.w3.org/css-validator/<?php if($css_url = self::get_file(true)): ?>validator?uri=<?php echo $css_url; ?><?php endif; ?>" target="_blank">validate your CSS</a> using W3C's free CSS Validation Service.
+					To check for errors, you can <a href="http://jigsaw.w3.org/css-validator/<?php if ( $css_url = self::get_file( true ) ): ?>validator?uri=<?php echo $css_url; ?><?php endif; ?>" target="_blank">validate your CSS</a> using W3C's free CSS Validation Service.
 				</div>
 
 				<script type="text/javascript">
