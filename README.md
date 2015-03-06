@@ -1,25 +1,25 @@
 # BU Custom CSS #
-**Contributors:** BostonU, inderpreet99  
+**Contributors:** automattic, BostonU, inderpreet99  
 **Tags:** custom, css  
-**Requires at least:** 2.9  
-**Tested up to:** 3.6.1  
-**Stable tag:** 1.0.3  
+**Requires at least:** 4.0  
+**Tested up to:** 4.1.1  
+**Stable tag:** 2.0  
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
 ## Description ##
 
-This plugin is a fork of [Wordpress.com Custom CSS plugin](http://wordpress.org/extend/plugins/safecss/) which, at the time of the fork, had not been updated for more than 2 years.
+This plugin is a fork of [Jetpack's Custom CSS module](http://wordpress.org/plugins/jetpack/). This plugin provides the Custom CSS module without the connection to WordPress.com. It also lets users use Custom CSS features without needing to install the entire Jetpack plugin.
 
 Like the original, all CSS code is stored using a custom post_type, which means you can view revision history, compare revisions and restore using the built-in revision engine.
 
-This forked version saves the css into a custom.css file in the upload directory, allowing the user to also edit the CSS through various file editing/uploading protocols like SFTP, SSH, FTP(S).
-The plugin will auto import if there is a custom.css present in the site's upload directory, and will continue to auto import anytime it detects changes, so you can work seamlessly on the CSS either inside the WP environment, or externally.
+This forked version saves the CSS into a custom.min.css and custom.css file in the upload directory to serve CSS without going through the database. It also supports the SCRIPT_DEBUG constant.
 
 Other improvements include:
-* Refreshed the overall look of the admin screen and the frontend preview.
-* Removed CSSTidy because it does not support CSS3 features.
-* Made the language easier to understand and fixed miscellaneous bugs.
+* W3C Validator link
+* BU look and text changes 
+* Included Jetpack's User Agent class for device detection
+* BU Mobile plugin support to add Custom CSS for mobile themes
 
 ## Installation ##
 
@@ -28,6 +28,12 @@ Other improvements include:
 1. Access Custom CSS under Site Design in the WP Admin sidebar.
 
 ## Changelog ##
+
+### 2.0 ###
+* Import Jetpack's Custom CSS module from 3.4-beta
+* Port previous changes on top of Jetpack's code
+* Remove physical custom.css file sync functionality
+* Add custom.min.css file support
 
 ### 1.0.3 ###
 * fix deprecated revisions functions for WP 3.6 support (backport from jetpack)
