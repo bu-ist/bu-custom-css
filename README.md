@@ -25,7 +25,7 @@ Other improvements include:
 
 1. Upload the `bu-custom-css` folder to the `/wp-content/plugins/` directory
 1. Activate the plugin through the 'Plugins' menu in WordPress
-1. Access Custom CSS under Site Design in the WP Admin sidebar.
+1. Access Custom CSS under Appearance in the WP Admin sidebar.
 
 ## Changelog ##
 
