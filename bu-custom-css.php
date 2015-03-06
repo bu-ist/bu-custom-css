@@ -32,7 +32,8 @@ Version: 1.0.3
 	// wp_die( 'You have the Wordpress.com Custom CSS plugin activated. Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.' );
 // }
 
-define('BUCC_FILENAME', 'custom.css');
+define('BUCC_FILENAME', 'custom.min.css');
+define('BUCC_FILENAME_DEBUG', 'custom.css');
 define('BUCC_POST_TYPE', 'bucc');
 
 class Jetpack_Custom_CSS {
@@ -562,7 +563,7 @@ class Jetpack_Custom_CSS {
 		$css = str_replace( array( '\\\00BB \\\0020', '\0BB \020', '0BB 020' ), '\00BB \0020', $css );
 
 
-		if ( empty($css) and $safecss_file = self::get_file() ) {
+		if ( empty($css) and $safecss_file = self::get_file( false, false ) ) {
 			$css = file_get_contents($safecss_file);
 		}
 
@@ -612,12 +613,19 @@ class Jetpack_Custom_CSS {
 
 		$css    = '';
 		$option = Jetpack_Custom_CSS::is_preview() ? 'safecss_preview' : 'safecss';
-
-
 	
 		// shortcircuit: if not preview, output the stylesheet tag
 		if ( 'safecss' == $option ) {
-			if( $href = self::get_file(true) ) {
+
+			if ( defined( 'SCRIPT_DEBUG' ) &&  SCRIPT_DEBUG ) {
+				// in SCRIPT_DEBUG mode, use non-minified css
+				$href = self::get_file( false, true );
+			} else {
+				// default: minified
+				$href = self::get_file( true, true );
+			}
+			
+			if ( $href ) {
 				?><link rel="stylesheet" id="custom-css-css"  type="text/css" href="<?php echo esc_attr( $href . '?' . get_option( self::get_option_name( 'safecss_rev') ) ); ?>" /><?php
 
 				/**
@@ -794,7 +802,6 @@ class Jetpack_Custom_CSS {
 		// add_action( 'custom_css_submitbox_misc_actions', array( __CLASS__, 'content_width_settings' ) );
 
 		$safecss_post = Jetpack_Custom_CSS::get_post();
-		$last_updated = self::process_file_updates();
 
 		if ( ! empty( $safecss_post ) && 0 < $safecss_post['ID'] && wp_get_post_revisions( $safecss_post['ID'] ) )
 			add_meta_box( 'revisionsdiv', __( 'CSS Revisions', 'jetpack' ), array( __CLASS__, 'revisions_meta_box' ), 'editcss', 'side' );
@@ -812,15 +819,6 @@ class Jetpack_Custom_CSS {
 			
 			?>
 			<h2><?php _e( 'CSS Stylesheet Editor', 'jetpack' ); ?></h2>
-
-			<?php if ( $last_updated ): ?>
-			<div class="error">
-				<p>
-					<strong>Your Custom CSS file has been modified outside of Wordpress!</strong>
-					We have refreshed the editor below to show the new CSS. The previous version, updated on <?php echo $last_updated; ?>, has been saved as a revision.
-				</p>
-			</div>
-			<?php endif; ?>
 
 			<?php if ( defined( 'BU_CMS' ) and BU_CMS ): ?>
 			<div class="error">
@@ -1040,7 +1038,7 @@ class Jetpack_Custom_CSS {
 				?>
 
 				<div class="misc-pub-section validate">
-					To check for errors, you can <a href="http://jigsaw.w3.org/css-validator/<?php if ( $css_url = self::get_file( true ) ): ?>validator?uri=<?php echo $css_url; ?><?php endif; ?>" target="_blank">validate your CSS</a> using W3C's free CSS Validation Service.
+					To check for errors, you can <a href="http://jigsaw.w3.org/css-validator/<?php if ( $css_url = self::get_file( false, true ) ): ?>validator?uri=<?php echo $css_url; ?><?php endif; ?>" target="_blank">validate your CSS</a> using W3C's free CSS Validation Service.
 				</div>
 
 				<script type="text/javascript">
@@ -1425,9 +1423,9 @@ class Jetpack_Custom_CSS {
 	 * @param boolean $projected true if file existence doesn't matter, false (default) if it does
 	 * @return boolean|string if the custom css file is found, returns it or false
 	 */
-	static function get_file( $url = false, $projected = false ) {
+	static function get_file( $min = true, $url = false, $projected = false ) {
 		
-		$filename = self::get_filename();
+		$filename = self::get_filename( $min );
 		$filepath = ABSPATH . get_option( 'upload_path' ) . '/' . $filename;
 		$siteurl = get_option( 'siteurl' );
 		if ( file_exists( $filepath ) || $projected ) {
@@ -1445,32 +1443,13 @@ class Jetpack_Custom_CSS {
 	 * 
 	 * @return string
 	 */
-	static function get_filename() {
-		$filename = BUCC_FILENAME;
-		return apply_filters( 'bucc_filename', $filename );
-	}
-
-	/**
-	 * Pick up any updates in the custom css file (i.e. updates happening outside wordpress, like through ftp/ssh)
-	 * 
-	 * @return last-mod-time|false non-false response indicates that newer content was retrieved from custom css file
-	 */
-	static function process_file_updates() {
-		
-		if ( $filepath = self::get_file() ) {
-			$newcss = file_get_contents( $filepath );
-			if ( $safecss_post = self::get_post() ) {
-				$mod_time = get_post_modified_time( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), null, $safecss_post['ID'] );
-				if ( $safecss_post && $safecss_post['post_content'] != $newcss ) {
-					self::save_revision( $newcss );
-					return $mod_time;
-				}
-			} else {
-				// this is the first import from custom.css, do it silently
-				self::save_revision( $newcss );
-			}
+	static function get_filename( $min = true ) {
+		if( $min ) {
+			$filename = BUCC_FILENAME;
+		} else {
+			$filename = BUCC_FILENAME_DEBUG;
 		}
-		return false;
+		return apply_filters( 'bucc_filename', $filename, $min );
 	}
 
 	/**
@@ -1481,24 +1460,43 @@ class Jetpack_Custom_CSS {
 	 * @return boolean true if file saved, false otherwise
 	 */
 	static function save_to_file( $post_id, $post, $update ) {
-		if ( !$post || $post->post_type != self::get_post_type_name() ) return;
+		if ( ! $post || $post->post_type != self::get_post_type_name() ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
-		// save css to file
-		$file = self::get_file( false, true );
-		$dir = dirname( $file );
+		// save minified
+		$file = self::get_file( true, false, true );
+		$min_status = self::write_file( $file, $post->post_content_filtered );
+
+		// save non-minified
+		$file = self::get_file( false, false, true );
+		$nonmin_status = self::write_file( $file, $post->post_content );
+		
+		return $min_status && $nonmin_status;
+	}
+
+
+	static function write_file( $filename, $content, $delete_empty = true ) {
+		$dir = dirname( $filename );
 		if ( is_dir( $dir ) && is_writable( $dir ) ) {
+
+			if ( '' == trim( $content ) ) {
+				// avoid writing empty files
+				@unlink( $filename );
+				return true;
+			}
+
+			// minified file
 			$temp_file = tempnam( '/tmp', BUCC_FILENAME );
 
 			if ( $temp_file ) {
 				$f = @fopen( $temp_file, 'w' );
 
 				if ( $f ) {
-					fwrite( $f, $post->post_content );
+					fwrite( $f, $content );
 					fclose( $f );
 
-					@rename( $temp_file, $file ); // atomic on unix
-					@chmod( $file, 0664 );
+					@rename( $temp_file, $filename ); // atomic on unix
+					@chmod( $filename, 0664 );
 				}
 			}
 			return true;

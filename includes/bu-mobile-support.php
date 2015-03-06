@@ -1,6 +1,7 @@
 <?php
 
-define('BUCC_FILENAME_MOBILE', 'custom-mobile.css');
+define('BUCC_FILENAME_MOBILE', 'custom-mobile.min.css');
+define('BUCC_FILENAME_MOBILE_DEBUG', 'custom-mobile.css');
 
 
 /**
@@ -34,14 +35,18 @@ function bucc_is_mobile() {
  * @param string $filename
  * @return string
  */
-function bucc_mobile_css_file($filename) {
+function bucc_mobile_css_file( $filename, $min ) {
 	if( bucc_is_mobile() ) {
-		return apply_filters('bucc_filename_mobile', BUCC_FILENAME_MOBILE);
+		if ( $min ) {
+			return apply_filters('bucc_filename_mobile', BUCC_FILENAME_MOBILE);
+		} else {
+			return apply_filters('bucc_filename_mobile', BUCC_FILENAME_MOBILE_DEBUG);
+		}
 	}
 	
 	return $filename;
 }
-add_filter('bucc_filename', 'bucc_mobile_css_file');
+add_filter('bucc_filename', 'bucc_mobile_css_file', 10, 2);
 
 
 /**
