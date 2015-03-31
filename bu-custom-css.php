@@ -197,7 +197,7 @@ class Jetpack_Custom_CSS {
 		$csstidy->set_cfg( 'optimise_shorthands',        0 );
 		$csstidy->set_cfg( 'remove_last_;',              false );
 		$csstidy->set_cfg( 'case_properties',            false );
-		$csstidy->set_cfg( 'discard_invalid_properties', true );
+		$csstidy->set_cfg( 'discard_invalid_properties', false );
 		$csstidy->set_cfg( 'css_level',                  'CSS3.0' );
 		$csstidy->set_cfg( 'preserve_css',               true );
 		$csstidy->set_cfg( 'template',                   dirname( __FILE__ ) . '/csstidy/wordpress-standard.tpl' );
@@ -1202,7 +1202,7 @@ class Jetpack_Custom_CSS {
 		$csstidy->set_cfg( 'compress_font-weight',       true );
 		$csstidy->set_cfg( 'remove_last_;',              true );
 		$csstidy->set_cfg( 'case_properties',            true );
-		$csstidy->set_cfg( 'discard_invalid_properties', true );
+		$csstidy->set_cfg( 'discard_invalid_properties', false );
 		$csstidy->set_cfg( 'css_level',                  'CSS3.0' );
 		$csstidy->set_cfg( 'template', 'highest');
 		$csstidy->parse( $css );
