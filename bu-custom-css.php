@@ -399,12 +399,12 @@ class Jetpack_Custom_CSS {
 				return false;
 
 			$post = array();
-			$post['post_content'] = $css;
+			$post['post_content'] = wp_slash( $css );
 			$post['post_title'] = self::get_option_name( self::get_post_type_name());
 			$post['post_name'] = self::get_option_name( self::get_post_type_name());
 			$post['post_status'] = 'publish';
 			$post['post_type'] = self::get_post_type_name();
-			$post['post_content_filtered'] = $compressed_css;
+			$post['post_content_filtered'] = wp_slash( $compressed_css );
 
 			// Set excerpt to current theme, for display in revisions list
 			if ( function_exists( 'wp_get_theme' ) ) {
@@ -422,8 +422,8 @@ class Jetpack_Custom_CSS {
 		}
 
 		// Update CSS in post array with new value passed to this function
-		$safecss_post['post_content'] = $css;
-		$safecss_post['post_content_filtered'] = $compressed_css;
+		$safecss_post['post_content'] = wp_slash($css);
+		$safecss_post['post_content_filtered'] = wp_slash($compressed_css);
 
 		// Set excerpt to current theme, for display in revisions list
 		if ( function_exists( 'wp_get_theme' ) ) {
