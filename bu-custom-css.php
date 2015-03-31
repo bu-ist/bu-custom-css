@@ -4,7 +4,7 @@ Plugin Name: BU Custom CSS Editor
 Description: Allows CSS editing with an option to override the original theme CSS.
 Author: Automattic and Boston University (IS&T)
 Author URI: http://www.bu.edu/tech/
-Version: 2.0
+Version: 2.0.1
 */
 
 /**
