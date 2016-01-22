@@ -253,6 +253,8 @@ class Jetpack_Custom_CSS {
 			$css = $csstidy->print->plain();
 		}
 
+		$css = self::IE_slash_fix( $css );
+
 		if ( $args['add_to_existing'] )
 			$add_to_existing = 'yes';
 		else
@@ -1521,6 +1523,17 @@ class Jetpack_Custom_CSS {
 		}
 		
 		return false;
+	}
+
+
+	/**
+	 * Adds an extra space between IE backslash and semicolon hack
+	 * CSS Tidy seems to remove the IE backslash fix, which causes the next property to move up.
+	 * @param string $css
+	 */
+	static function IE_slash_fix( $css ) {
+		$css = preg_replace( '!\\\;!', '\\ ;', $css );
+		return $css;
 	}
 }
 
