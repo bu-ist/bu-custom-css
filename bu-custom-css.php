@@ -4,24 +4,24 @@ Plugin Name: BU Custom CSS Editor
 Description: Allows CSS editing with an option to override the original theme CSS.
 Author: Automattic and Boston University (IS&T)
 Author URI: http://www.bu.edu/tech/
-Version: 2.0.1
+Version: 2.0.2
 */
 
 /**
- * 
+ *
  * Copyright Automattic
  * Copyright Boston University
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -47,7 +47,7 @@ class Jetpack_Custom_CSS {
 		// Override the edit link, the default link causes a redirect loop
 		add_filter( 'get_edit_post_link', array( __CLASS__, 'revision_post_link' ), 10, 3 );
 
-		// Overwrite the content width global variable if one is set in the custom css 
+		// Overwrite the content width global variable if one is set in the custom css
 		add_action( 'template_redirect', array( __CLASS__, 'set_content_width' ) );
 		add_action( 'admin_init', array( __CLASS__, 'set_content_width' ) );
 
@@ -116,7 +116,6 @@ class Jetpack_Custom_CSS {
 
 		if ( isset( $_POST['safecss'] ) && false == strstr( $_SERVER[ 'REQUEST_URI' ], 'options.php' ) ) {
 			check_admin_referer( 'safecss' );
-
 			$save_result = self::save( array(
 				'css' => stripslashes( $_POST['safecss'] ),
 				'is_preview' => isset( $_POST['action'] ) && $_POST['action'] == 'preview',
@@ -204,21 +203,23 @@ class Jetpack_Custom_CSS {
 
 		$css = $orig = $args['css'];
 
-		$css = preg_replace( '/\\\\([0-9a-fA-F]{4})/', '\\\\\\\\$1', $prev = $css );
+		// Disable all hacks to mess with CSS.
 
-		if ( $css != $prev )
-			$warnings[] = 'preg_replace found stuff';
+		// $css = preg_replace( '/\\\\([0-9a-fA-F]{4})/', '\\\\\\\\$1', $prev = $css );
+
+		// if ( $css != $prev )
+		// 	$warnings[] = 'preg_replace found stuff';
 
 		// Some people put weird stuff in their CSS, KSES tends to be greedy
-		$css = str_replace( '<=', '&lt;=', $css );
-		// Why KSES instead of strip_tags?  Who knows?
-		$css = wp_kses_split( $prev = $css, array(), array() );
-		$css = str_replace( '&gt;', '>', $css ); // kses replaces lone '>' with &gt;
-		// Why both KSES and strip_tags?  Because we just added some '>'.
-		$css = strip_tags( $css );
+		// $css = str_replace( '<=', '&lt;=', $css );
+		// // Why KSES instead of strip_tags?  Who knows?
+		// $css = wp_kses_split( $prev = $css, array(), array() );
+		// $css = str_replace( '&gt;', '>', $css ); // kses replaces lone '>' with &gt;
+		// // Why both KSES and strip_tags?  Because we just added some '>'.
+		// $css = strip_tags( $css );
 
-		if ( $css != $prev )
-			$warnings[] = 'kses found stuff';
+		// if ( $css != $prev )
+		// 	$warnings[] = 'kses found stuff';
 
 		// if we're not using a preprocessor
 		if ( ! $args['preprocessor'] ) {
@@ -238,7 +239,7 @@ class Jetpack_Custom_CSS {
 			$csstidy->parse( $css );
 
 			/**
-			 * Fires after parsing the css with CSSTidy, but only if 
+			 * Fires after parsing the css with CSSTidy, but only if
 			 * the preprocessor is not cinfigured for use
 			 *
 			 * @since ?
@@ -251,6 +252,8 @@ class Jetpack_Custom_CSS {
 
 			$css = $csstidy->print->plain();
 		}
+
+		$css = self::IE_slash_fix( $css );
 
 		if ( $args['add_to_existing'] )
 			$add_to_existing = 'yes';
@@ -391,6 +394,9 @@ class Jetpack_Custom_CSS {
 	static function save_revision( $css, $is_preview = false, $preprocessor = '' ) {
 		$safecss_post = Jetpack_Custom_CSS::get_post();
 
+		// avoid extra kses processing
+		kses_remove_filters();
+
 		$compressed_css = Jetpack_Custom_CSS::minify( $css, $preprocessor );
 
 		// If null, there was no original safecss record, so create one
@@ -418,12 +424,13 @@ class Jetpack_Custom_CSS {
 			// Insert the CSS into wp_posts
 			$post_id = wp_insert_post( $post );
 			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $post_id );
+			kses_init_filters();
 			return $post_id;
 		}
 
 		// Update CSS in post array with new value passed to this function
-		$safecss_post['post_content'] = wp_slash($css);
-		$safecss_post['post_content_filtered'] = wp_slash($compressed_css);
+		$safecss_post['post_content'] = $css;
+		$safecss_post['post_content_filtered'] = $compressed_css;
 
 		// Set excerpt to current theme, for display in revisions list
 		if ( function_exists( 'wp_get_theme' ) ) {
@@ -442,13 +449,25 @@ class Jetpack_Custom_CSS {
 
 		// Do not update post if we are only saving a preview
 		if ( false === $is_preview ) {
+			/**
+			 * Problem: Apparently wp_update_post only slashes if an object is passed as parameter,
+			 * but wp_insert_post (called within wp_update_post) will unslash everything regardless
+			 * Solution: Slash data to avoid losing any backlslashes (needed as an IE hack)
+			 */
+			$safecss_post = wp_slash( $safecss_post );
 			$post_id = wp_update_post( $safecss_post );
 			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $post_id );
+			kses_init_filters();
 			return $post_id;
 		}
 		else if ( ! defined( 'DOING_MIGRATE' ) ) {
-			return _wp_put_post_revision( $safecss_post );
+			// No need to wp_slash because _wp_put_post_revision always slashes
+			$revision_id = _wp_put_post_revision( $safecss_post );
+			kses_init_filters();
+			return $revision_id;
 		}
+
+		kses_init_filters();
 	}
 
 	static function skip_stylesheet() {
@@ -499,7 +518,7 @@ class Jetpack_Custom_CSS {
 	}
 
 	/**
-	 * Currently this filter function gets called on 
+	 * Currently this filter function gets called on
 	 * 'template_redirect' action and
 	 * 'admin_init' action
 	 */
@@ -556,7 +575,6 @@ class Jetpack_Custom_CSS {
 		else if ( 'safecss_preview' == $option ) {
 			$safecss_post = Jetpack_Custom_CSS::get_current_revision();
 			$css = $safecss_post['post_content'];
-			$css = stripslashes( $css );
 			$css = Jetpack_Custom_CSS::minify( $css, get_post_meta( $safecss_post['ID'], 'custom_css_preprocessor', true ) );
 		}
 
@@ -587,7 +605,7 @@ class Jetpack_Custom_CSS {
 	}
 
 	static function print_css() {
-		
+
 		/**
 		 * Fires right before printing the custom CSS inside the <head> element
 		 *
@@ -613,7 +631,7 @@ class Jetpack_Custom_CSS {
 
 		$css    = '';
 		$option = Jetpack_Custom_CSS::is_preview() ? 'safecss_preview' : 'safecss';
-	
+
 		// shortcircuit: if not preview, output the stylesheet tag
 		if ( 'safecss' == $option ) {
 
@@ -624,7 +642,7 @@ class Jetpack_Custom_CSS {
 				// default: minified
 				$href = self::get_file( true, true );
 			}
-			
+
 			if ( $href ) {
 				?><link rel="stylesheet" id="custom-css-css"  type="text/css" href="<?php echo esc_attr( $href . '?' . get_option( self::get_option_name( 'safecss_rev') ) ); ?>" /><?php
 
@@ -719,7 +737,7 @@ class Jetpack_Custom_CSS {
 		flag.style.color = 'black';
 		flag.style.fontSize = '13px';
 		flag.style.padding = '10px';
-		flag.style.fontFamily = 'sans-serif'; 
+		flag.style.fontFamily = 'sans-serif';
 		document.body.style.paddingTop = '0px';
 		document.body.insertBefore(flag, document.body.childNodes[0]);
 		";
@@ -743,7 +761,7 @@ class Jetpack_Custom_CSS {
 
 		add_action( "load-revision.php", array( 'Jetpack_Custom_CSS', 'prettify_post_revisions' ) );
 		add_action( "load-$hook", array( 'Jetpack_Custom_CSS', 'update_title' ) );
-	
+
 		do_action('bucc_menu', $parent);
 	}
 
@@ -807,16 +825,16 @@ class Jetpack_Custom_CSS {
 			add_meta_box( 'revisionsdiv', __( 'CSS Revisions', 'jetpack' ), array( __CLASS__, 'revisions_meta_box' ), 'editcss', 'side' );
 		?>
 		<div class="wrap">
-			<?php 
-			
+			<?php
+
 			/**
 			 * Fire right before the custom css page begins
 			 *
 			 * @since ?
 			 * @module Custom_CSS
 			 **/
-			do_action( 'custom_design_header' ); 
-			
+			do_action( 'custom_design_header' );
+
 			?>
 			<h2><?php _e( 'CSS Stylesheet Editor', 'jetpack' ); ?></h2>
 
@@ -843,7 +861,7 @@ class Jetpack_Custom_CSS {
 					<p class="css-support"><?php echo apply_filters( 'safecss_intro_text', __( 'New to CSS? Start with a <a href="http://www.htmldog.com/guides/cssbeginner/">beginner tutorial</a>. Questions?
 		Ask in the <a href="http://wordpress.org/support/forum/themes-and-templates">Themes and Templates forum</a>.', 'jetpack' ) ); ?></p>
 					<?php endif; ?>
-					
+
 					<div id="post-body" class="metabox-holder columns-2">
 						<div id="post-body-content">
 							<div class="postarea">
@@ -1024,8 +1042,8 @@ class Jetpack_Custom_CSS {
 						<a class="cancel-css-mode hide-if-no-js" href="#css-mode"><?php esc_html_e( 'Cancel', 'jetpack' ); ?></a>
 					</div>
 				</div>
-				<?php 
-				
+				<?php
+
 				/**
 				 * Allows addition of elements to the submit box for custom css
 				 * on the wp-admin side
@@ -1033,8 +1051,8 @@ class Jetpack_Custom_CSS {
 				 * @since ?
 				 * @module Custom_CSS
 				 **/
-				do_action( 'custom_css_submitbox_misc_actions' ); 
-				
+				do_action( 'custom_css_submitbox_misc_actions' );
+
 				?>
 
 				<div class="misc-pub-section validate">
@@ -1418,13 +1436,13 @@ class Jetpack_Custom_CSS {
 
 	/**
 	 * Get the file (path or url) to custom css file
-	 * 
+	 *
 	 * @param boolean $url true to get frontend URL, false (default) to get absolute path
 	 * @param boolean $projected true if file existence doesn't matter, false (default) if it does
 	 * @return boolean|string if the custom css file is found, returns it or false
 	 */
 	static function get_file( $min = true, $url = false, $projected = false ) {
-		
+
 		$filename = self::get_filename( $min );
 		$filepath = ABSPATH . get_option( 'upload_path' ) . '/' . $filename;
 		$siteurl = get_option( 'siteurl' );
@@ -1440,7 +1458,7 @@ class Jetpack_Custom_CSS {
 
 	/**
 	 * Get the filename for custom css file
-	 * 
+	 *
 	 * @return string
 	 */
 	static function get_filename( $min = true ) {
@@ -1454,7 +1472,7 @@ class Jetpack_Custom_CSS {
 
 	/**
 	 * Saves the updated css post as static file in media directory
-	 * 
+	 *
 	 * @param int $post_id
 	 * @param object $post
 	 * @return boolean true if file saved, false otherwise
@@ -1470,7 +1488,7 @@ class Jetpack_Custom_CSS {
 		// save non-minified
 		$file = self::get_file( false, false, true );
 		$nonmin_status = self::write_file( $file, $post->post_content );
-		
+
 		return $min_status && $nonmin_status;
 	}
 
@@ -1503,8 +1521,19 @@ class Jetpack_Custom_CSS {
 		} else {
 			error_log( "Could not update the custom CSS file. Directory ($dir) is not writable." );
 		}
-		
+
 		return false;
+	}
+
+
+	/**
+	 * Adds an extra space between IE backslash and semicolon hack
+	 * CSS Tidy seems to remove the IE backslash fix, which causes the next property to move up.
+	 * @param string $css
+	 */
+	static function IE_slash_fix( $css ) {
+		$css = preg_replace( '!\\\;!', '\\ ;', $css );
+		return $css;
 	}
 }
 
@@ -1756,7 +1785,7 @@ function safecss_class() {
 		}
 
 		function postparse() {
-			
+
 			/**
 			 * Do actions after parsing the css
 			 *

@@ -1,9 +1,9 @@
 # BU Custom CSS #
-**Contributors:** automattic, BostonU, inderpreet99  
-**Tags:** custom, css  
-**Requires at least:** 4.0  
-**Tested up to:** 4.1.1  
-**Stable tag:** 2.0  
+**Contributors:** automattic, BostonU, inderpreet99
+**Tags:** custom, css
+**Requires at least:** 4.0
+**Tested up to:** 4.1.9
+**Stable tag:** 2.0.2
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
@@ -17,7 +17,7 @@ This forked version saves the CSS into a custom.min.css and custom.css file in t
 
 Other improvements include:
 * W3C Validator link
-* BU look and text changes 
+* BU look and text changes
 * Included Jetpack's User Agent class for device detection
 * BU Mobile plugin support to add Custom CSS for mobile themes
 
@@ -28,6 +28,15 @@ Other improvements include:
 1. Access Custom CSS under Appearance in the WP Admin sidebar.
 
 ## Changelog ##
+
+### 2.0.2 ###
+* Revert 2.0.1 slashes change (caused extra slashes to appear in random places)
+* Disable all CSS processing (kses, preg_replace, strip_tags)
+* Add IE slash fix
+
+### 2.0.1 ###
+* Do not discard invalid properties
+* Add slashes to saved post content to avoid IE backslashes from getting stripped
 
 ### 2.0 ###
 * Import Jetpack's Custom CSS module from 3.4-beta
