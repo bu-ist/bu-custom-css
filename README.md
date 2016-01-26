@@ -17,7 +17,7 @@ This forked version saves the CSS into a custom.min.css and custom.css file in t
 
 Other improvements include:
 * W3C Validator link
-* BU look and text changes 
+* BU look and text changes
 * Included Jetpack's User Agent class for device detection
 * BU Mobile plugin support to add Custom CSS for mobile themes
 
