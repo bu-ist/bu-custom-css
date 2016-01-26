@@ -116,7 +116,6 @@ class Jetpack_Custom_CSS {
 
 		if ( isset( $_POST['safecss'] ) && false == strstr( $_SERVER[ 'REQUEST_URI' ], 'options.php' ) ) {
 			check_admin_referer( 'safecss' );
-
 			$save_result = self::save( array(
 				'css' => stripslashes( $_POST['safecss'] ),
 				'is_preview' => isset( $_POST['action'] ) && $_POST['action'] == 'preview',
@@ -204,21 +203,23 @@ class Jetpack_Custom_CSS {
 
 		$css = $orig = $args['css'];
 
-		$css = preg_replace( '/\\\\([0-9a-fA-F]{4})/', '\\\\\\\\$1', $prev = $css );
+		// Disable all hacks to mess with CSS.
+		
+		// $css = preg_replace( '/\\\\([0-9a-fA-F]{4})/', '\\\\\\\\$1', $prev = $css );
 
-		if ( $css != $prev )
-			$warnings[] = 'preg_replace found stuff';
+		// if ( $css != $prev )
+		// 	$warnings[] = 'preg_replace found stuff';
 
 		// Some people put weird stuff in their CSS, KSES tends to be greedy
-		$css = str_replace( '<=', '&lt;=', $css );
-		// Why KSES instead of strip_tags?  Who knows?
-		$css = wp_kses_split( $prev = $css, array(), array() );
-		$css = str_replace( '&gt;', '>', $css ); // kses replaces lone '>' with &gt;
-		// Why both KSES and strip_tags?  Because we just added some '>'.
-		$css = strip_tags( $css );
+		// $css = str_replace( '<=', '&lt;=', $css );
+		// // Why KSES instead of strip_tags?  Who knows?
+		// $css = wp_kses_split( $prev = $css, array(), array() );
+		// $css = str_replace( '&gt;', '>', $css ); // kses replaces lone '>' with &gt;
+		// // Why both KSES and strip_tags?  Because we just added some '>'.
+		// $css = strip_tags( $css );
 
-		if ( $css != $prev )
-			$warnings[] = 'kses found stuff';
+		// if ( $css != $prev )
+		// 	$warnings[] = 'kses found stuff';
 
 		// if we're not using a preprocessor
 		if ( ! $args['preprocessor'] ) {
@@ -251,6 +252,8 @@ class Jetpack_Custom_CSS {
 
 			$css = $csstidy->print->plain();
 		}
+
+		$css = self::IE_slash_fix( $css );
 
 		if ( $args['add_to_existing'] )
 			$add_to_existing = 'yes';
@@ -391,6 +394,9 @@ class Jetpack_Custom_CSS {
 	static function save_revision( $css, $is_preview = false, $preprocessor = '' ) {
 		$safecss_post = Jetpack_Custom_CSS::get_post();
 
+		// avoid extra kses processing
+		kses_remove_filters();
+
 		$compressed_css = Jetpack_Custom_CSS::minify( $css, $preprocessor );
 
 		// If null, there was no original safecss record, so create one
@@ -418,12 +424,13 @@ class Jetpack_Custom_CSS {
 			// Insert the CSS into wp_posts
 			$post_id = wp_insert_post( $post );
 			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $post_id );
+			kses_init_filters();
 			return $post_id;
 		}
 
 		// Update CSS in post array with new value passed to this function
-		$safecss_post['post_content'] = wp_slash($css);
-		$safecss_post['post_content_filtered'] = wp_slash($compressed_css);
+		$safecss_post['post_content'] = $css;
+		$safecss_post['post_content_filtered'] = $compressed_css;
 
 		// Set excerpt to current theme, for display in revisions list
 		if ( function_exists( 'wp_get_theme' ) ) {
@@ -442,13 +449,25 @@ class Jetpack_Custom_CSS {
 
 		// Do not update post if we are only saving a preview
 		if ( false === $is_preview ) {
+			/**
+			 * Problem: Apparently wp_update_post only slashes if an object is passed as parameter,
+			 * but wp_insert_post (called within wp_update_post) will unslash everything regardless
+			 * Solution: Slash data to avoid losing any backlslashes (needed as an IE hack)
+			 */
+			$safecss_post = wp_slash( $safecss_post );
 			$post_id = wp_update_post( $safecss_post );
 			wp_cache_set( self::get_option_name( 'custom_css_post_id' ), $post_id );
+			kses_init_filters();
 			return $post_id;
 		}
 		else if ( ! defined( 'DOING_MIGRATE' ) ) {
-			return _wp_put_post_revision( $safecss_post );
+			// No need to wp_slash because _wp_put_post_revision always slashes
+			$revision_id = _wp_put_post_revision( $safecss_post );
+			kses_init_filters();
+			return $revision_id;
 		}
+
+		kses_init_filters();
 	}
 
 	static function skip_stylesheet() {
@@ -556,7 +575,6 @@ class Jetpack_Custom_CSS {
 		else if ( 'safecss_preview' == $option ) {
 			$safecss_post = Jetpack_Custom_CSS::get_current_revision();
 			$css = $safecss_post['post_content'];
-			$css = stripslashes( $css );
 			$css = Jetpack_Custom_CSS::minify( $css, get_post_meta( $safecss_post['ID'], 'custom_css_preprocessor', true ) );
 		}
 
@@ -1505,6 +1523,17 @@ class Jetpack_Custom_CSS {
 		}
 		
 		return false;
+	}
+
+
+	/**
+	 * Adds an extra space between IE backslash and semicolon hack
+	 * CSS Tidy seems to remove the IE backslash fix, which causes the next property to move up.
+	 * @param string $css
+	 */
+	static function IE_slash_fix( $css ) {
+		$css = preg_replace( '!\\\;!', '\\ ;', $css );
+		return $css;
 	}
 }
 
