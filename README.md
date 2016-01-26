@@ -1,9 +1,9 @@
 # BU Custom CSS #
-**Contributors:** automattic, BostonU, inderpreet99  
-**Tags:** custom, css  
-**Requires at least:** 4.0  
-**Tested up to:** 4.1.1  
-**Stable tag:** 2.0  
+**Contributors:** automattic, BostonU, inderpreet99
+**Tags:** custom, css
+**Requires at least:** 4.0
+**Tested up to:** 4.1.9
+**Stable tag:** 2.0.2
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
