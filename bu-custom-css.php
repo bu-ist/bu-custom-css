@@ -1445,13 +1445,8 @@ class Jetpack_Custom_CSS {
 
 		$filename = self::get_filename( $min );
 		$filepath = ABSPATH . get_option( 'upload_path' ) . '/' . $filename;
-		$siteurl = get_option( 'siteurl' );
 		if ( file_exists( $filepath ) || $projected ) {
-			if ( $url ) {
-				return $siteurl . '/files/' . $filename;
-			} else {
-				return $filepath;
-			}
+			return $url ? site_url( '/files/' . $filename ) : $filepath;
 		}
 		return false;
 	}
