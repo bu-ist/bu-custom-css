@@ -125,6 +125,30 @@ function bucc_mobile_stylesheet() {
 	return $stylesheet;
 }
 
+/**
+ * Update title in head
+ * @return
+ */
+function bucc_head_title() {
+	global $title;
+	if ( bucc_is_mobile() ) {
+		$title = __( 'Mobile CSS', 'jetpack' );
+	}
+}
+
+/**
+ * Update h1 page title
+ * @param  string $title
+ * @return string
+ */
+function bucc_page_title( $title ) {
+	if ( bucc_is_mobile() ) {
+		$title = 'Mobile ' . $title;
+	}
+
+	return $title;
+}
+
 
 /**
  * Adds a Custom Mobile CSS link to the sidebar under Site Design
@@ -136,8 +160,9 @@ function bucc_mobile_menu( $parent ) {
 		$title = __( 'Edit Mobile CSS', 'jetpack' );
 		$hook = add_theme_page( $title, $title, 'edit_theme_options', 'editcss-mobile', array( 'Jetpack_Custom_CSS', 'admin' ) );
 
-		add_action( "load-$hook", array( 'Jetpack_Custom_CSS', 'update_title' ) );
 		add_action( 'load-revision.php', array( 'Jetpack_Custom_CSS', 'prettify_post_revisions' ) );
+		add_action( "load-$hook", 'bucc_head_title', 20 );
+		add_filter( 'bucc_page_title', 'bucc_page_title', 20 );
 	}
 }
 add_action( 'bucc_menu', 'bucc_mobile_menu' );

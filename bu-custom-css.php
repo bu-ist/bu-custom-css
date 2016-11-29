@@ -1073,7 +1073,7 @@ class Jetpack_Custom_CSS {
 
 			?>
 
-			<h1><?php _e( 'CSS Stylesheet Editor', 'jetpack' ); ?></h1>
+			<h1><?php _e( apply_filters( 'bucc_page_title', 'CSS Stylesheet Editor' ), 'jetpack' ); ?></h1>
 
 			<?php if ( defined( 'BU_CMS' ) and BU_CMS ): ?>
 			<div class="error">
