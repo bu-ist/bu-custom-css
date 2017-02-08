@@ -132,7 +132,7 @@ function bucc_mobile_stylesheet() {
 function bucc_head_title() {
 	global $title;
 	if ( bucc_is_mobile() ) {
-		$title = __( 'Mobile CSS', 'jetpack' );
+		$title = __( 'Mobile Custom CSS', 'jetpack' );
 	}
 }
 
@@ -157,7 +157,7 @@ function bucc_page_title( $title ) {
  */
 function bucc_mobile_menu( $parent ) {
 	if ( /* current_theme_supports('bu-custom-css-mobile') && */ function_exists( 'bu_mobile_init' ) ) {
-		$title = __( 'Edit Mobile CSS', 'jetpack' );
+		$title = __( 'Mobile Custom CSS', 'jetpack' );
 		$hook = add_theme_page( $title, $title, 'edit_theme_options', 'editcss-mobile', array( 'Jetpack_Custom_CSS', 'admin' ) );
 
 		add_action( 'load-revision.php', array( 'Jetpack_Custom_CSS', 'prettify_post_revisions' ) );
