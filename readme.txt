@@ -3,7 +3,7 @@ Contributors: automattic, BostonU, inderpreet99, awbauer
 Tags: custom, css
 Requires at least: 4.0
 Tested up to: 4.1.9
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
@@ -28,6 +28,9 @@ Other improvements include:
 1. Access Custom CSS under Appearance in the WP Admin sidebar.
 
 == Changelog ==
+
+= 2.1.1 =
+* Updated php class constructor methods to avoid deprecated notices.
 
 = 2.1.0 =
 * Merge changes from Jetpack 4.4.1 Custom CSS module
