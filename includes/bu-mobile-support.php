@@ -116,7 +116,7 @@ add_filter( 'bucc_current_stylesheet', 'bucc_mobile_current_stylesheet' );
  * @return boolean|string
  */
 function bucc_mobile_stylesheet() {
-	$theme = get_theme( bu_mobile_theme_name() );
+	$theme = get_theme( bu_mobile_theme_name() ); // phpcs:ignore WordPress.WP.DeprecatedFunctions.get_themeFound
 	if ( ! isset( $theme['Stylesheet Files'] ) || count( $theme['Stylesheet Files'] ) == 0 ) {
 		return false;
 	}
