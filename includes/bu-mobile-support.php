@@ -23,7 +23,7 @@ function bucc_is_mobile() {
 	}
 
 	// if we're on mobile css edit page, or looking at the frontend (while being mobile), then YES
-	if ( $_GET['page'] == 'editcss-mobile' || ( ! is_admin() && bu_mobile_wants_mobile() ) ) {
+	if ( ( isset( $_GET['page'] ) && $_GET['page'] === 'editcss-mobile' ) || ( ! is_admin() && bu_mobile_wants_mobile() ) ) {
 		return true;
 	}
 
