@@ -144,7 +144,7 @@ class Jetpack_Custom_CSS {
 
 		add_action( 'save_post', array( 'Jetpack_Custom_CSS', 'save_to_file' ), 10, 3 );
 
-		if ( !current_user_can( 'switch_themes' ) && !is_super_admin() )
+		if ( !current_user_can( 'edit_theme_options' ) && !is_super_admin() )
 			return;
 
 		add_action( 'admin_menu', array( 'Jetpack_Custom_CSS', 'menu' ) );
@@ -890,7 +890,7 @@ class Jetpack_Custom_CSS {
 	}
 
 	static function style_filter( $current ) {
-		if ( Jetpack_Custom_CSS::is_freetrial() && ( ! Jetpack_Custom_CSS::is_preview() || ! current_user_can( 'switch_themes' ) ) )
+		if ( Jetpack_Custom_CSS::is_freetrial() && ( ! Jetpack_Custom_CSS::is_preview() || ! current_user_can( 'edit_theme_options' ) ) )
 			return $current;
 		else if ( Jetpack_Custom_CSS::skip_stylesheet() )
 			/**
@@ -2133,4 +2133,3 @@ add_action( 'init', array( 'Jetpack_Custom_CSS', 'init' ) );
 include dirname( __FILE__ ) . '/custom-css/preprocessors.php';
 include dirname( __FILE__ ) . '/includes/class.jetpack-user-agent.php';
 include dirname( __FILE__ ) . '/includes/bu-mobile-support.php';
-
