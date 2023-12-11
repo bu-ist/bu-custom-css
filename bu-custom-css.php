@@ -832,10 +832,10 @@ class Jetpack_Custom_CSS {
 
 			if ( defined( 'SCRIPT_DEBUG' ) &&  SCRIPT_DEBUG ) {
 				// in SCRIPT_DEBUG mode, use non-minified css
-				$href = self::get_file( false, true );
+				$href = site_url( '/files/custom.css' );
 			} else {
 				// default: minified
-				$href = self::get_file( true, true );
+				$href = site_url( '/files/custom.min.css' );
 			}
 
 			/**
@@ -1793,12 +1793,10 @@ class Jetpack_Custom_CSS {
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
 		// save minified
-		$file = self::get_file( true, false, true );
-		$min_status = self::write_file( $file, $post->post_content_filtered );
+		$min_status = self::write_file( 'custom.min.css', $post->post_content_filtered );
 
 		// save non-minified
-		$file = self::get_file( false, false, true );
-		$nonmin_status = self::write_file( $file, $post->post_content );
+		$nonmin_status = self::write_file( 'custom.css', $post->post_content );
 
 		return $min_status && $nonmin_status;
 	}
