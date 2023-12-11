@@ -32,6 +32,9 @@ Version: 2.1.1
 	// wp_die( 'You have the Wordpress.com Custom CSS plugin activated. Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.' );
 // }
 
+use Aws\S3\S3Client;
+use BU\Plugins\MediaS3;
+
 /**
  * BU Customizations:
  * - Override Post type names, redirect urls (i.e. add mobile prefixes) to work with BU Mobile plugin
@@ -1801,36 +1804,33 @@ class Jetpack_Custom_CSS {
 	}
 
 
-	static function write_file( $filename, $content, $delete_empty = true ) {
-		$dir = dirname( $filename );
-		if ( is_dir( $dir ) && is_writable( $dir ) ) {
+	static function write_file( $filename, $content ) {
+		// Get the site URL.
+		$siteurl = get_option( 'siteurl' );
 
-			if ( '' == trim( $content ) ) {
-				// avoid writing empty files
-				@unlink( $filename );
-				return true;
-			}
+		// Create the S3 client, and get the bucket name and site key.
+		$s3_client =  MediaS3\new_s3_client();
+		$bucket    = str_replace( '/original_media', '', S3_UPLOADS_BUCKET );
+		$site_key  = str_replace( array( 'http://', 'https://' ), '', $siteurl );
 
-			// minified file
-			$temp_file = tempnam( '/tmp', BUCC_FILENAME );
+		// Write the file to S3.
+		try {
+			// Write the file to S3.
+			$s3_client->putObject(
+				array(
+					'Bucket' => $bucket,
+					'Key'    => "original_media/{$site_key}/files/{$filename}",
+					'Body'   => $content,
+				)
+			);
 
-			if ( $temp_file ) {
-				$f = @fopen( $temp_file, 'w' );
-
-				if ( $f ) {
-					fwrite( $f, $content );
-					fclose( $f );
-
-					@rename( $temp_file, $filename ); // atomic on unix
-					@chmod( $filename, 0664 );
-				}
-			}
-			return true;
-		} else {
-			error_log( "Could not update the custom CSS file. Directory ($dir) is not writable." );
+		} catch ( AwsException $e ) {
+			// Handle the exception.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $e->getMessage() );
+			// Return false if unsuccessful.
+			return false;
 		}
-
-		return false;
 	}
 
 
