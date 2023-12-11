@@ -1785,6 +1785,7 @@ class Jetpack_Custom_CSS {
 	 * @return boolean true if file saved, false otherwise
 	 */
 	static function save_to_file( $post_id, $post, $update ) {
+		// Check if this is a custom css post, and return early to bail if it isn't.
 		if ( ! $post || $post->post_type != self::get_post_type_name() ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
