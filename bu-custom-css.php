@@ -1792,6 +1792,12 @@ class Jetpack_Custom_CSS {
 		if ( ! $post || $post->post_type != self::get_post_type_name() ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
+		// Check here if we should inline the styles, because if so there's no need to save the file.
+		if ( self::should_we_inline_custom_css( true, $post->post_content_filtered )) {
+			// Return early to skip saving the file.
+			return true;
+		}
+
 		// save minified
 		$min_status = self::write_file( 'custom.min.css', $post->post_content_filtered );
 
