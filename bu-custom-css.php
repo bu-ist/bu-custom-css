@@ -1793,7 +1793,7 @@ class Jetpack_Custom_CSS {
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
 		// Check here if we should inline the styles, because if so there's no need to save the file.
-		if ( self::should_we_inline_custom_css( true, $post->post_content_filtered )) {
+		if ( self::should_we_inline_custom_css( false, $post->post_content_filtered )) {
 			// Return early to skip saving the file.
 			return true;
 		}
