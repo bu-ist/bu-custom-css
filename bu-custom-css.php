@@ -1794,6 +1794,10 @@ class Jetpack_Custom_CSS {
 
 		// Check here if we should inline the styles, because if so there's no need to save the file.
 		if ( self::should_we_inline_custom_css( false, $post->post_content_filtered )) {
+			// Delete any files that might be there since styles will be inline.
+			self::delete_file( 'custom.min.css' );
+			self::delete_file( 'custom.css' );
+			
 			// Return early to skip saving the file.
 			return true;
 		}
@@ -1837,6 +1841,33 @@ class Jetpack_Custom_CSS {
 		}
 	}
 
+	static function delete_file( $filename ) {
+		// Get the site URL.
+		$siteurl = get_option( 'siteurl' );
+
+		// Create the S3 client, and get the bucket name and site key.
+		$s3_client =  MediaS3\new_s3_client();
+		$bucket    = str_replace( '/original_media', '', S3_UPLOADS_BUCKET );
+		$site_key  = str_replace( array( 'http://', 'https://' ), '', $siteurl );
+
+		// Delete the files from S3.
+		try {
+			// Delete the files from S3.
+			$s3_client->deleteObject(
+				array(
+					'Bucket' => $bucket,
+					'Key'    => "original_media/{$site_key}/files/{$filename}",
+				)
+			);
+
+		} catch ( AwsException $e ) {
+			// Handle the exception.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $e->getMessage() );
+			// Return false if unsuccessful.
+			return false;
+		}
+	}
 
 	/**
 	 * Adds an extra space between IE backslash and semicolon hack
