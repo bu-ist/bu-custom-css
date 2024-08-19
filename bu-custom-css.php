@@ -1829,6 +1829,7 @@ class Jetpack_Custom_CSS {
 					'Bucket' => $bucket,
 					'Key'    => "original_media/{$site_key}/files/{$filename}",
 					'Body'   => $content,
+					'ContentType' => 'text/css',
 				)
 			);
 
