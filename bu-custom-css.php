@@ -1071,10 +1071,11 @@ class Jetpack_Custom_CSS {
 				<p>
 					<strong>Important:</strong>
 					Adding custom CSS to your theme can have a negative effect on the appearance of your pages.
-					The IS&amp;T Help Desk does not support custom styles created using this tool.
-					If you are new to CSS, start with a <a href="http://www.htmldog.com/guides/css/beginner/" target="_blank">beginner tutorial</a>.
+					The IT Help Center does not support custom styles created using this tool.
 					By using this tool, you agree to take full responsibility for the appearance of your website,
-					and that your website will remain in compliance with the <a href="http://www.bu.edu/brand/websites/" target="_blank">University branding guidelines</a>.
+					and that your website will remain in compliance with
+					<a href="https://www.bu.edu/mwas/">Minimum Web Accessibility requirements</a> and 
+					<a href="http://www.bu.edu/brand/websites/" target="_blank">Boston University branding guidelines</a>.
 				</p>
 			</div>
 			<?php endif; ?>
