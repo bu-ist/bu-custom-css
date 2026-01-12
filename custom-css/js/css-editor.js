@@ -32,14 +32,14 @@
 } )( jQuery );
 
 jQuery( function ( $ ) {
-	$( '.edit-preprocessor' ).bind( 'click', function ( e ) {
+	$( '.edit-preprocessor' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
 		$( '#preprocessor-select' ).slideDown();
 		$( this ).hide();
 	} );
 
-	$( '.cancel-preprocessor' ).bind( 'click', function ( e ) {
+	$( '.cancel-preprocessor' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
 		$( '#preprocessor-select' ).slideUp( function () {
@@ -48,7 +48,7 @@ jQuery( function ( $ ) {
 		} );
 	} );
 
-	$( '.save-preprocessor' ).bind( 'click', function ( e ) {
+	$( '.save-preprocessor' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
 		$( '#preprocessor-select' ).slideUp();
@@ -57,23 +57,23 @@ jQuery( function ( $ ) {
 		$( '.edit-preprocessor' ).show();
 	} );
 
-	$( '.edit-css-mode' ).bind( 'click', function ( e ) {
+	$( '.edit-css-mode' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
 		$( '#css-mode-select' ).slideDown();
 		$( this ).hide();
 	} );
 
-	$( '.cancel-css-mode' ).bind( 'click', function ( e ) {
+	$( '.cancel-css-mode' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
 		$( '#css-mode-select' ).slideUp( function () {
 			$( '.edit-css-mode' ).show();
-			$( 'input[name=add_to_existing_display][value=' + $( '#add_to_existing' ).val() + ']' ).attr( 'checked', true );
+			$( 'input[name=add_to_existing_display][value=' + $( '#add_to_existing' ).val() + ']' ).prop( 'checked', true );
 		} );
 	} );
 
-	$( '.save-css-mode' ).bind( 'click', function ( e ) {
+	$( '.save-css-mode' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
 		$( '#css-mode-select' ).slideUp();
