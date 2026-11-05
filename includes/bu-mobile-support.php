@@ -23,7 +23,7 @@ function bucc_is_mobile() {
 	}
 
 	// if we're on mobile css edit page, or looking at the frontend (while being mobile), then YES
-	if ( $_GET['page'] == 'editcss-mobile' || ( ! is_admin() && bu_mobile_wants_mobile() ) ) {
+	if ( ( isset( $_GET['page'] ) && $_GET['page'] === 'editcss-mobile' ) || ( ! is_admin() && bu_mobile_wants_mobile() ) ) {
 		return true;
 	}
 
@@ -116,7 +116,7 @@ add_filter( 'bucc_current_stylesheet', 'bucc_mobile_current_stylesheet' );
  * @return boolean|string
  */
 function bucc_mobile_stylesheet() {
-	$theme = get_theme( bu_mobile_theme_name() );
+	$theme = get_theme( bu_mobile_theme_name() ); // phpcs:ignore WordPress.WP.DeprecatedFunctions.get_themeFound
 	if ( ! isset( $theme['Stylesheet Files'] ) || count( $theme['Stylesheet Files'] ) == 0 ) {
 		return false;
 	}

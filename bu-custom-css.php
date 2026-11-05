@@ -4,7 +4,7 @@ Plugin Name: BU Custom CSS Editor
 Description: Allows CSS editing with an option to override the original theme CSS.
 Author: Automattic and Boston University (IS&T)
 Author URI: http://www.bu.edu/tech/
-Version: 2.1.1
+Version: 2.1.2
 */
 
 /**
@@ -31,6 +31,9 @@ Version: 2.1.1
 // if ( function_exists( 'safecss' ) || ( class_exists( 'Jetpack' ) && Jetpack::is_module_active( 'custom-css' ) ) ) {
 	// wp_die( 'You have the Wordpress.com Custom CSS plugin activated. Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.' );
 // }
+
+use Aws\S3\S3Client;
+use BU\Plugins\MediaS3;
 
 /**
  * BU Customizations:
@@ -144,7 +147,7 @@ class Jetpack_Custom_CSS {
 
 		add_action( 'save_post', array( 'Jetpack_Custom_CSS', 'save_to_file' ), 10, 3 );
 
-		if ( !current_user_can( 'switch_themes' ) && !is_super_admin() )
+		if ( !current_user_can( 'edit_theme_options' ) && !is_super_admin() )
 			return;
 
 		add_action( 'admin_menu', array( 'Jetpack_Custom_CSS', 'menu' ) );
@@ -495,13 +498,7 @@ class Jetpack_Custom_CSS {
 			$post['post_content_filtered'] = wp_slash( $compressed_css );
 
 			// Set excerpt to current theme, for display in revisions list
-			if ( function_exists( 'wp_get_theme' ) ) {
-				$current_theme = wp_get_theme();
-				$post['post_excerpt'] = $current_theme->Name;
-			}
-			else {
-				$post['post_excerpt'] = get_current_theme();
-			}
+			$post['post_excerpt'] = wp_get_theme()->Name;
 
 			// Insert the CSS into wp_posts
 			$post_id = wp_insert_post( $post );
@@ -515,13 +512,7 @@ class Jetpack_Custom_CSS {
 		$safecss_post['post_content_filtered'] = $compressed_css;
 
 		// Set excerpt to current theme, for display in revisions list
-		if ( function_exists( 'wp_get_theme' ) ) {
-			$current_theme = wp_get_theme();
-			$safecss_post['post_excerpt'] = $current_theme->Name;
-		}
-		else {
-			$safecss_post['post_excerpt'] = get_current_theme();
-		}
+		$safecss_post['post_excerpt'] = wp_get_theme()->Name;
 
 		// Don't carry over last revision's timestamps, otherwise revisions all have matching timestamps
 		unset( $safecss_post['post_date'] );
@@ -841,10 +832,10 @@ class Jetpack_Custom_CSS {
 
 			if ( defined( 'SCRIPT_DEBUG' ) &&  SCRIPT_DEBUG ) {
 				// in SCRIPT_DEBUG mode, use non-minified css
-				$href = self::get_file( false, true );
+				$href = site_url( '/files/custom.css' );
 			} else {
 				// default: minified
-				$href = self::get_file( true, true );
+				$href = site_url( '/files/custom.min.css' );
 			}
 
 			/**
@@ -902,7 +893,7 @@ class Jetpack_Custom_CSS {
 	}
 
 	static function style_filter( $current ) {
-		if ( Jetpack_Custom_CSS::is_freetrial() && ( ! Jetpack_Custom_CSS::is_preview() || ! current_user_can( 'switch_themes' ) ) )
+		if ( Jetpack_Custom_CSS::is_freetrial() && ( ! Jetpack_Custom_CSS::is_preview() || ! current_user_can( 'edit_theme_options' ) ) )
 			return $current;
 		else if ( Jetpack_Custom_CSS::skip_stylesheet() )
 			/**
@@ -1080,10 +1071,11 @@ class Jetpack_Custom_CSS {
 				<p>
 					<strong>Important:</strong>
 					Adding custom CSS to your theme can have a negative effect on the appearance of your pages.
-					The IS&amp;T Help Desk does not support custom styles created using this tool.
-					If you are new to CSS, start with a <a href="http://www.htmldog.com/guides/css/beginner/" target="_blank">beginner tutorial</a>.
+					The IT Help Center does not support custom styles created using this tool.
 					By using this tool, you agree to take full responsibility for the appearance of your website,
-					and that your website will remain in compliance with the <a href="http://www.bu.edu/brand/websites/" target="_blank">University branding guidelines</a>.
+					and that your website will remain in compliance with
+					<a href="https://www.bu.edu/mwas/">Minimum Web Accessibility requirements</a> and 
+					<a href="http://www.bu.edu/brand/websites/" target="_blank">Boston University branding guidelines</a>.
 				</p>
 			</div>
 			<?php endif; ?>
@@ -1136,7 +1128,7 @@ class Jetpack_Custom_CSS {
 	static function content_width_settings() {
 		$safecss_post = Jetpack_Custom_CSS::get_current_revision();
 
-		$custom_content_width = get_post_meta( $safecss_post['ID'], 'content_width', true );
+		$custom_content_width = get_post_meta( $safecss_post['ID'] ?? 0, 'content_width', true );
 
 		// If custom content width hasn't been overridden and the theme has a content_width value, use that as a default.
 		if ( $custom_content_width <= 0 && ! empty( $GLOBALS['content_width'] ) )
@@ -1175,10 +1167,7 @@ class Jetpack_Custom_CSS {
 				<?php
 
 				if ( !empty( $GLOBALS['content_width'] ) && $custom_content_width != $GLOBALS['content_width'] ) {
-					if ( function_exists( 'wp_get_theme' ) )
-						$current_theme = wp_get_theme()->Name;
-					else
-						$current_theme = get_current_theme();
+					$current_theme = wp_get_theme()->Name;
 
 					?>
 					<p><?php printf( __( 'The default content width for the %s theme is %d pixels.', 'jetpack' ), $current_theme, intval( $GLOBALS['content_width'] ) ); ?></p>
@@ -1255,7 +1244,7 @@ class Jetpack_Custom_CSS {
 
 				if ( ! empty( $preprocessors ) ) {
 					$safecss_post = Jetpack_Custom_CSS::get_current_revision();
-					$selected_preprocessor_key = get_post_meta( $safecss_post['ID'], 'custom_css_preprocessor', true );
+					$selected_preprocessor_key = get_post_meta( $safecss_post['ID'] ?? 0, 'custom_css_preprocessor', true );
 					$selected_preprocessor = isset( $preprocessors[$selected_preprocessor_key] ) ? $preprocessors[$selected_preprocessor_key] : null;
 
 					?>
@@ -1286,7 +1275,7 @@ class Jetpack_Custom_CSS {
 
 				$safecss_post = Jetpack_Custom_CSS::get_current_revision();
 
-				$add_css = ( get_post_meta( $safecss_post['ID'], 'custom_css_add', true ) != 'no' );
+				$add_css = ( get_post_meta( $safecss_post['ID'] ?? 0, 'custom_css_add', true ) != 'no' );
 
 				?>
 				<div class="misc-pub-section">
@@ -1800,53 +1789,87 @@ class Jetpack_Custom_CSS {
 	 * @return boolean true if file saved, false otherwise
 	 */
 	static function save_to_file( $post_id, $post, $update ) {
+		// Check if this is a custom css post, and return early to bail if it isn't.
 		if ( ! $post || $post->post_type != self::get_post_type_name() ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
+		// Check here if we should inline the styles, because if so there's no need to save the file.
+		if ( self::should_we_inline_custom_css( false, $post->post_content )) {
+			// Delete any files that might be there since styles will be inline.
+			self::delete_file( 'custom.min.css' );
+			self::delete_file( 'custom.css' );
+			
+			// Return early to skip saving the file.
+			return true;
+		}
+
 		// save minified
-		$file = self::get_file( true, false, true );
-		$min_status = self::write_file( $file, $post->post_content_filtered );
+		$min_status = self::write_file( 'custom.min.css', $post->post_content_filtered );
 
 		// save non-minified
-		$file = self::get_file( false, false, true );
-		$nonmin_status = self::write_file( $file, $post->post_content );
+		$nonmin_status = self::write_file( 'custom.css', $post->post_content );
 
 		return $min_status && $nonmin_status;
 	}
 
 
-	static function write_file( $filename, $content, $delete_empty = true ) {
-		$dir = dirname( $filename );
-		if ( is_dir( $dir ) && is_writable( $dir ) ) {
+	static function write_file( $filename, $content ) {
+		// Get the site URL.
+		$siteurl = get_option( 'siteurl' );
 
-			if ( '' == trim( $content ) ) {
-				// avoid writing empty files
-				@unlink( $filename );
-				return true;
-			}
+		// Create the S3 client, and get the bucket name and site key.
+		$s3_client =  MediaS3\new_s3_client();
+		$bucket    = str_replace( '/original_media', '', S3_UPLOADS_BUCKET );
+		$site_key  = str_replace( array( 'http://', 'https://' ), '', $siteurl );
 
-			// minified file
-			$temp_file = tempnam( '/tmp', BUCC_FILENAME );
+		// Write the file to S3.
+		try {
+			// Write the file to S3.
+			$s3_client->putObject(
+				array(
+					'Bucket' => $bucket,
+					'Key'    => "original_media/{$site_key}/files/{$filename}",
+					'Body'   => $content,
+					'ContentType' => 'text/css',
+				)
+			);
 
-			if ( $temp_file ) {
-				$f = @fopen( $temp_file, 'w' );
-
-				if ( $f ) {
-					fwrite( $f, $content );
-					fclose( $f );
-
-					@rename( $temp_file, $filename ); // atomic on unix
-					@chmod( $filename, 0664 );
-				}
-			}
-			return true;
-		} else {
-			error_log( "Could not update the custom CSS file. Directory ($dir) is not writable." );
+		} catch ( AwsException $e ) {
+			// Handle the exception.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $e->getMessage() );
+			// Return false if unsuccessful.
+			return false;
 		}
-
-		return false;
 	}
 
+	static function delete_file( $filename ) {
+		// Get the site URL.
+		$siteurl = get_option( 'siteurl' );
+
+		// Create the S3 client, and get the bucket name and site key.
+		$s3_client =  MediaS3\new_s3_client();
+		$bucket    = str_replace( '/original_media', '', S3_UPLOADS_BUCKET );
+		$site_key  = str_replace( array( 'http://', 'https://' ), '', $siteurl );
+
+		// Delete the files from S3.
+		try {
+			// Delete the files from S3.
+			$s3_client->deleteObject(
+				array(
+					'Bucket' => $bucket,
+					'Key'    => "original_media/{$site_key}/files/{$filename}",
+				)
+			);
+
+		} catch ( AwsException $e ) {
+			// Handle the exception.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $e->getMessage() );
+			// Return false if unsuccessful.
+			return false;
+		}
+	}
 
 	/**
 	 * Adds an extra space between IE backslash and semicolon hack
@@ -2148,4 +2171,3 @@ add_action( 'init', array( 'Jetpack_Custom_CSS', 'init' ) );
 include dirname( __FILE__ ) . '/custom-css/preprocessors.php';
 include dirname( __FILE__ ) . '/includes/class.jetpack-user-agent.php';
 include dirname( __FILE__ ) . '/includes/bu-mobile-support.php';
-
