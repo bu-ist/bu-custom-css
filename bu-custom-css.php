@@ -4,7 +4,7 @@ Plugin Name: BU Custom CSS Editor
 Description: Allows CSS editing with an option to override the original theme CSS.
 Author: Automattic and Boston University (IS&T)
 Author URI: http://www.bu.edu/tech/
-Version: 2.1.1
+Version: 2.1.2
 */
 
 /**
@@ -1128,7 +1128,7 @@ class Jetpack_Custom_CSS {
 	static function content_width_settings() {
 		$safecss_post = Jetpack_Custom_CSS::get_current_revision();
 
-		$custom_content_width = get_post_meta( $safecss_post['ID'], 'content_width', true );
+		$custom_content_width = get_post_meta( $safecss_post['ID'] ?? 0, 'content_width', true );
 
 		// If custom content width hasn't been overridden and the theme has a content_width value, use that as a default.
 		if ( $custom_content_width <= 0 && ! empty( $GLOBALS['content_width'] ) )
@@ -1244,7 +1244,7 @@ class Jetpack_Custom_CSS {
 
 				if ( ! empty( $preprocessors ) ) {
 					$safecss_post = Jetpack_Custom_CSS::get_current_revision();
-					$selected_preprocessor_key = get_post_meta( $safecss_post['ID'], 'custom_css_preprocessor', true );
+					$selected_preprocessor_key = get_post_meta( $safecss_post['ID'] ?? 0, 'custom_css_preprocessor', true );
 					$selected_preprocessor = isset( $preprocessors[$selected_preprocessor_key] ) ? $preprocessors[$selected_preprocessor_key] : null;
 
 					?>
@@ -1275,7 +1275,7 @@ class Jetpack_Custom_CSS {
 
 				$safecss_post = Jetpack_Custom_CSS::get_current_revision();
 
-				$add_css = ( get_post_meta( $safecss_post['ID'], 'custom_css_add', true ) != 'no' );
+				$add_css = ( get_post_meta( $safecss_post['ID'] ?? 0, 'custom_css_add', true ) != 'no' );
 
 				?>
 				<div class="misc-pub-section">
