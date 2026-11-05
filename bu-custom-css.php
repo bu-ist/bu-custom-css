@@ -32,6 +32,9 @@ Version: 2.1.1
 	// wp_die( 'You have the Wordpress.com Custom CSS plugin activated. Since this plugin is a fork with some improvements. We recommend that you deactivate that plugin first before continuing.' );
 // }
 
+use Aws\S3\S3Client;
+use BU\Plugins\MediaS3;
+
 /**
  * BU Customizations:
  * - Override Post type names, redirect urls (i.e. add mobile prefixes) to work with BU Mobile plugin
@@ -829,10 +832,10 @@ class Jetpack_Custom_CSS {
 
 			if ( defined( 'SCRIPT_DEBUG' ) &&  SCRIPT_DEBUG ) {
 				// in SCRIPT_DEBUG mode, use non-minified css
-				$href = self::get_file( false, true );
+				$href = site_url( '/files/custom.css' );
 			} else {
 				// default: minified
-				$href = self::get_file( true, true );
+				$href = site_url( '/files/custom.min.css' );
 			}
 
 			/**
@@ -1786,53 +1789,87 @@ class Jetpack_Custom_CSS {
 	 * @return boolean true if file saved, false otherwise
 	 */
 	static function save_to_file( $post_id, $post, $update ) {
+		// Check if this is a custom css post, and return early to bail if it isn't.
 		if ( ! $post || $post->post_type != self::get_post_type_name() ) return;
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 
+		// Check here if we should inline the styles, because if so there's no need to save the file.
+		if ( self::should_we_inline_custom_css( false, $post->post_content )) {
+			// Delete any files that might be there since styles will be inline.
+			self::delete_file( 'custom.min.css' );
+			self::delete_file( 'custom.css' );
+			
+			// Return early to skip saving the file.
+			return true;
+		}
+
 		// save minified
-		$file = self::get_file( true, false, true );
-		$min_status = self::write_file( $file, $post->post_content_filtered );
+		$min_status = self::write_file( 'custom.min.css', $post->post_content_filtered );
 
 		// save non-minified
-		$file = self::get_file( false, false, true );
-		$nonmin_status = self::write_file( $file, $post->post_content );
+		$nonmin_status = self::write_file( 'custom.css', $post->post_content );
 
 		return $min_status && $nonmin_status;
 	}
 
 
-	static function write_file( $filename, $content, $delete_empty = true ) {
-		$dir = dirname( $filename );
-		if ( is_dir( $dir ) && is_writable( $dir ) ) {
+	static function write_file( $filename, $content ) {
+		// Get the site URL.
+		$siteurl = get_option( 'siteurl' );
 
-			if ( '' == trim( $content ) ) {
-				// avoid writing empty files
-				@unlink( $filename );
-				return true;
-			}
+		// Create the S3 client, and get the bucket name and site key.
+		$s3_client =  MediaS3\new_s3_client();
+		$bucket    = str_replace( '/original_media', '', S3_UPLOADS_BUCKET );
+		$site_key  = str_replace( array( 'http://', 'https://' ), '', $siteurl );
 
-			// minified file
-			$temp_file = tempnam( '/tmp', BUCC_FILENAME );
+		// Write the file to S3.
+		try {
+			// Write the file to S3.
+			$s3_client->putObject(
+				array(
+					'Bucket' => $bucket,
+					'Key'    => "original_media/{$site_key}/files/{$filename}",
+					'Body'   => $content,
+					'ContentType' => 'text/css',
+				)
+			);
 
-			if ( $temp_file ) {
-				$f = @fopen( $temp_file, 'w' );
-
-				if ( $f ) {
-					fwrite( $f, $content );
-					fclose( $f );
-
-					@rename( $temp_file, $filename ); // atomic on unix
-					@chmod( $filename, 0664 );
-				}
-			}
-			return true;
-		} else {
-			error_log( "Could not update the custom CSS file. Directory ($dir) is not writable." );
+		} catch ( AwsException $e ) {
+			// Handle the exception.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $e->getMessage() );
+			// Return false if unsuccessful.
+			return false;
 		}
-
-		return false;
 	}
 
+	static function delete_file( $filename ) {
+		// Get the site URL.
+		$siteurl = get_option( 'siteurl' );
+
+		// Create the S3 client, and get the bucket name and site key.
+		$s3_client =  MediaS3\new_s3_client();
+		$bucket    = str_replace( '/original_media', '', S3_UPLOADS_BUCKET );
+		$site_key  = str_replace( array( 'http://', 'https://' ), '', $siteurl );
+
+		// Delete the files from S3.
+		try {
+			// Delete the files from S3.
+			$s3_client->deleteObject(
+				array(
+					'Bucket' => $bucket,
+					'Key'    => "original_media/{$site_key}/files/{$filename}",
+				)
+			);
+
+		} catch ( AwsException $e ) {
+			// Handle the exception.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $e->getMessage() );
+			// Return false if unsuccessful.
+			return false;
+		}
+	}
 
 	/**
 	 * Adds an extra space between IE backslash and semicolon hack
