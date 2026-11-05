@@ -4,7 +4,7 @@
 **Tags:** custom, css
 **Requires at least:** 4.0
 **Tested up to:** 4.1.9
-**Stable tag:** 2.1.1
+**Stable tag:** 2.1.2
 
 Enables editing of a custom CSS file, with an option to override the original theme CSS.
 
@@ -30,6 +30,11 @@ Other improvements include:
 1. Access Custom CSS under Appearance in the WP Admin sidebar.
 
 ## Changelog
+
+### 2.1.2
+
+- PHP 8 compatibility in the bundled CSSTidy and LESS compiler: square-bracket string offsets, `key()` instead of `each()`, integer `rgb()` colour components before `dechex()`, and declared properties.
+- No PHP warnings on the Custom CSS editor for a site that has not saved any CSS.
 
 ### 2.1.1
 

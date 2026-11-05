@@ -41,6 +41,14 @@
  */
 class csstidy_optimise {
 
+	public $parser;
+	public $css;
+	public $sub_value;
+	public $at;
+	public $selector;
+	public $property;
+	public $value;
+
 	/**
 	 * Constructor
 	 * @param array $css contains the class csstidy
@@ -282,8 +290,11 @@ class csstidy_optimise {
 			for ($i = 0; $i < count($color_tmp); $i++) {
 				$color_tmp[$i] = trim($color_tmp[$i]);
 				if (substr($color_tmp[$i], -1) === '%') {
-					$color_tmp[$i] = round((255 * $color_tmp[$i]) / 100);
+					$color_tmp[$i] = round((255 * (float) $color_tmp[$i]) / 100);
 				}
+				// Use the component as an integer, which is how PHP 7 coerced it implicitly.
+				// PHP 8 throws a TypeError in dechex() for strings such as "0)" and compares them as strings.
+				$color_tmp[$i] = (int) $color_tmp[$i];
 				if ($color_tmp[$i] > 255)
 					$color_tmp[$i] = 255;
 			}
@@ -305,8 +316,8 @@ class csstidy_optimise {
 		// #aabbcc -> #abc
 		if (strlen($color) == 7) {
 			$color_temp = strtolower($color);
-			if ($color_temp{0} === '#' && $color_temp{1} == $color_temp{2} && $color_temp{3} == $color_temp{4} && $color_temp{5} == $color_temp{6}) {
-				$color = '#' . $color{1} . $color{3} . $color{5};
+			if ($color_temp[0] === '#' && $color_temp[1] == $color_temp[2] && $color_temp[3] == $color_temp[4] && $color_temp[5] == $color_temp[6]) {
+				$color = '#' . $color[1] . $color[3] . $color[5];
 			}
 		}
 
@@ -389,7 +400,7 @@ class csstidy_optimise {
 	 */
 	function AnalyseCssNumber($string) {
 		// most simple checks first
-		if (strlen($string) == 0 || ctype_alpha($string{0})) {
+		if (strlen($string) == 0 || ctype_alpha($string[0])) {
 			return false;
 		}
 
@@ -554,22 +565,22 @@ class csstidy_optimise {
 		for ($i = 0, $len = strlen($string); $i < $len; $i++) {
 			switch ($status) {
 				case 'st':
-					if ($string{$i} == $sep && !csstidy::escaped($string, $i)) {
+					if ($string[$i] == $sep && !csstidy::escaped($string, $i)) {
 						++$num;
-					} elseif ($string{$i} === '"' || $string{$i} === '\'' || $string{$i} === '(' && !csstidy::escaped($string, $i)) {
+					} elseif ($string[$i] === '"' || $string[$i] === '\'' || $string[$i] === '(' && !csstidy::escaped($string, $i)) {
 						$status = 'str';
-						$to = ($string{$i} === '(') ? ')' : $string{$i};
-						(isset($output[$num])) ? $output[$num] .= $string{$i} : $output[$num] = $string{$i};
+						$to = ($string[$i] === '(') ? ')' : $string[$i];
+						(isset($output[$num])) ? $output[$num] .= $string[$i] : $output[$num] = $string[$i];
 					} else {
-						(isset($output[$num])) ? $output[$num] .= $string{$i} : $output[$num] = $string{$i};
+						(isset($output[$num])) ? $output[$num] .= $string[$i] : $output[$num] = $string[$i];
 					}
 					break;
 
 				case 'str':
-					if ($string{$i} == $to && !csstidy::escaped($string, $i)) {
+					if ($string[$i] == $to && !csstidy::escaped($string, $i)) {
 						$status = 'st';
 					}
-					(isset($output[$num])) ? $output[$num] .= $string{$i} : $output[$num] = $string{$i};
+					(isset($output[$num])) ? $output[$num] .= $string[$i] : $output[$num] = $string[$i];
 					break;
 			}
 		}
@@ -593,8 +604,8 @@ class csstidy_optimise {
 		$shorthands = & $GLOBALS['csstidy']['shorthands'];
 
 		foreach ($shorthands as $key => $value) {
-			if (isset($array[$value[0]]) && isset($array[$value[1]])
-							&& isset($array[$value[2]]) && isset($array[$value[3]]) && $value !== 0) {
+			if ($value !== 0 && isset($array[$value[0]]) && isset($array[$value[1]])
+							&& isset($array[$value[2]]) && isset($array[$value[3]])) {
 				$return[$key] = '';
 
 				$important = '';
@@ -666,9 +677,9 @@ class csstidy_optimise {
 					$have['clip'] = true;
 				} elseif (in_array($str_value[$i][$j], $origin, true)) {
 					$return['background-origin'] .= $str_value[$i][$j] . ',';
-				} elseif ($str_value[$i][$j]{0} === '(') {
+				} elseif ($str_value[$i][$j][0] === '(') {
 					$return['background-size'] .= substr($str_value[$i][$j], 1, -1) . ',';
-				} elseif (in_array($str_value[$i][$j], $pos, true) || is_numeric($str_value[$i][$j]{0}) || $str_value[$i][$j]{0} === null || $str_value[$i][$j]{0} === '-' || $str_value[$i][$j]{0} === '.') {
+				} elseif (in_array($str_value[$i][$j], $pos, true) || is_numeric($str_value[$i][$j][0]) || $str_value[$i][$j][0] === null || $str_value[$i][$j][0] === '-' || $str_value[$i][$j][0] === '.') {
 					$return['background-position'] .= $str_value[$i][$j];
 					if (!$have['pos'])
 						$return['background-position'] .= ' '; else
@@ -815,7 +826,7 @@ class csstidy_optimise {
 			} elseif ($have['style'] === false && in_array($str_value[0][$j], $font_style)) {
 				$return['font-style'] = $str_value[0][$j];
 				$have['style'] = true;
-			} elseif ($have['size'] === false && (is_numeric($str_value[0][$j]{0}) || $str_value[0][$j]{0} === null || $str_value[0][$j]{0} === '.')) {
+			} elseif ($have['size'] === false && (is_numeric($str_value[0][$j][0]) || $str_value[0][$j][0] === null || $str_value[0][$j][0] === '.')) {
 				$size = csstidy_optimise::explode_ws('/', trim($str_value[0][$j]));
 				$return['font-size'] = $size[0];
 				if (isset($size[1])) {
@@ -845,7 +856,7 @@ class csstidy_optimise {
 
 		// Fix for 100 and more font-size
 		if ($have['size'] === false && isset($return['font-weight']) &&
-						is_numeric($return['font-weight']{0})) {
+						is_numeric($return['font-weight'][0])) {
 			$return['font-size'] = $return['font-weight'];
 			unset($return['font-weight']);
 		}
@@ -881,8 +892,8 @@ class csstidy_optimise {
 					$family = trim($family);
 					$len = strlen($family);
 					if (strpos($family, " ") &&
-									!(($family{0} == '"' && $family{$len - 1} == '"') ||
-									($family{0} == "'" && $family{$len - 1} == "'"))) {
+									!(($family[0] == '"' && $family[$len - 1] == '"') ||
+									($family[0] == "'" && $family[$len - 1] == "'"))) {
 						$family = '"' . $family . '"';
 					}
 					$result_families[] = $family;

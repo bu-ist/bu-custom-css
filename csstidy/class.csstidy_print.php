@@ -60,6 +60,14 @@ class csstidy_print {
 	 */
 	public $output_css_plain = '';
 
+	public $parser;
+	public $css;
+	public $template;
+	public $tokens;
+	public $charset;
+	public $import;
+	public $namespace;
+
 	/**
 	 * Constructor
 	 * @param array $css contains the class csstidy
@@ -220,7 +228,7 @@ class csstidy_print {
 				case SEL_START:
 					if ($this->parser->get_cfg('lowercase_s'))
 						$token[1] = strtolower($token[1]);
-					$out .= ( $token[1]{0} !== '@') ? $template[2] . $this->_htmlsp($token[1], $plain) : $template[0] . $this->_htmlsp($token[1], $plain);
+					$out .= ( $token[1][0] !== '@') ? $template[2] . $this->_htmlsp($token[1], $plain) : $template[0] . $this->_htmlsp($token[1], $plain);
 					$out .= $template[3];
 					break;
 
